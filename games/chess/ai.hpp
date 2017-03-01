@@ -93,6 +93,8 @@ public:
     // Don't edit these!
     // ####################
 
+private:
+    void MovePawn();
 };
 
 } // CHESS

@@ -76,12 +76,39 @@ bool AI::run_turn()
     std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
 
     // 4) make a random (and probably invalid) move.
-    chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
+    /*chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
     std::string random_file(1, 'a' + rand() % 8);
     int random_rank = (rand() % 8) + 1;
-    random_piece->move(random_file, random_rank);
+    random_piece->move(random_file, random_rank);*/
+    for(int i = 0; i < 16; ++i)
+    {
+        auto piece = player->pieces[i];
+
+        if(piece->type == "Pawn")
+        {
+            //MovePawn();
+            int move_location = 0;
+            if(!piece->has_moved)
+            {
+                move_location = piece->rank + player->rank_direction + player->rank_direction;
+                piece->move(piece->file, move_location);
+                i = 16;
+            }
+            else
+            {
+                move_location = piece->rank + player->rank_direction;
+                piece->move(piece->file, move_location);
+                i = 16;
+            }
+        }
+    }
 
     return true; // to signify we are done with our turn.
+}
+
+void AI::MovePawn()
+{
+
 }
 
 /// <summary>
