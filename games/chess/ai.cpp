@@ -80,35 +80,34 @@ bool AI::run_turn()
     std::string random_file(1, 'a' + rand() % 8);
     int random_rank = (rand() % 8) + 1;
     random_piece->move(random_file, random_rank);*/
-    for(int i = 0; i < 16; ++i)
+    for(int i = 0; i < player->pieces.size(); ++i)
     {
-        auto piece = player->pieces[i];
+        Piece piece = player->pieces[i];
 
         if(piece->type == "Pawn")
         {
-            //MovePawn();
-            int move_location = 0;
-            if(!piece->has_moved)
-            {
-                move_location = piece->rank + player->rank_direction + player->rank_direction;
-                piece->move(piece->file, move_location);
-                i = 16;
-            }
-            else
-            {
-                move_location = piece->rank + player->rank_direction;
-                piece->move(piece->file, move_location);
-                i = 16;
-            }
+            MovePawn(piece);
+        }
+
+        if(piece->type == "King")
+        {
+            MoveKing(piece);
         }
     }
 
+    if(!possible_moves.empty())
+    {
+        std::cout << "Possible moves exist\n";
+        int move_number = rand() % possible_moves.size();
+        Piece& piece_to_move = possible_moves[move_number].piece;
+        std::string new_file = possible_moves[move_number].new_file;
+        int new_rank = possible_moves[move_number].new_rank;
+        std::string promo = possible_moves[move_number].promotion;
+        piece_to_move->move(new_file, new_rank, promo);
+        possible_moves.clear();
+    }
+
     return true; // to signify we are done with our turn.
-}
-
-void AI::MovePawn()
-{
-
 }
 
 /// <summary>
@@ -178,6 +177,191 @@ void AI::print_current_board()
 }
 
 // You can add additional methods here for your AI to call
+
+void AI::MovePawn(Piece pawn)
+{
+    int move_location = 0;
+
+    node move_to_make;
+
+    move_location = pawn->rank + player->rank_direction;
+    if(!pawn->has_moved)
+    {
+        if(MovePossible(pawn->file, move_location) &&
+           MovePossible(pawn->file, move_location + player->rank_direction))
+        {
+            move_location += player->rank_direction;
+            move_to_make.piece = pawn;
+            move_to_make.new_file = pawn->file;
+            move_to_make.new_rank = move_location;
+            move_to_make.promotion = "";
+            possible_moves.push_back(move_to_make);
+        }
+    }
+    else
+    {
+        if(MovePossible(pawn->file, move_location))
+        {
+            move_to_make.piece = pawn;
+            move_to_make.new_file = pawn->file;
+            move_to_make.new_rank = move_location;
+            move_to_make.promotion = "";
+            possible_moves.push_back(move_to_make);
+        }
+    }
+
+    int file_location = pawn->file[0];
+    std::string final_file;
+    final_file = file_location + 1;
+    move_location = pawn->rank + player->rank_direction;
+    if(OpponentLocated(final_file, move_location))
+    {
+        move_to_make.piece = pawn;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    final_file = file_location - 1;
+    if(OpponentLocated(final_file, move_location))
+    {
+        move_to_make.piece = pawn;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+}
+
+void AI::MoveKing(Piece king)
+{
+    int move_location = king->rank;
+    int file_location = king->file[0];
+    std::string final_file;
+    node move_to_make;
+
+    final_file = file_location + 1;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    final_file = file_location - 1;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    move_location = king->rank + player->rank_direction;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    final_file = file_location + 1;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    if(MovePossible(king->file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = king->file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    move_location = king->rank - player->rank_direction;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    final_file = file_location - 1;
+    if(MovePossible(final_file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = final_file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+
+    if(MovePossible(king->file, move_location))
+    {
+        move_to_make.piece = king;
+        move_to_make.new_file = king->file;
+        move_to_make.new_rank = move_location;
+        move_to_make.promotion = "";
+        possible_moves.push_back(move_to_make);
+    }
+}
+
+bool AI::MovePossible(std::string file, int rank)
+{
+    int file_num;
+    file_num = file[0];
+
+    if(file_num < 97 || file_num > 104 || rank > 8 || rank < 1)
+    {
+        return false;
+    }
+
+    for(int i = 0; i < game->pieces.size(); ++i)
+    {
+        if(game->pieces[i]->file == file && game->pieces[i]->rank == rank)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool AI::OpponentLocated(std::string file, int rank)
+{
+    int file_num;
+    file_num = file[0];
+    
+    if(file_num < 97 || file_num > 104 || rank > 8 || rank < 1)
+    {
+        return false;
+    }
+    
+    for(int i = 0; i < game->pieces.size(); ++i)
+    {
+        if(game->pieces[i]->file == file && game->pieces[i]->rank == rank &&
+           game->pieces[i]->owner == player->opponent)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
 
 } // chess
 

@@ -12,12 +12,22 @@
 #include "../../joueur/src/attr_wrapper.hpp"
 
 // You can add additional #includes here
+#include <stdlib.h>
+#include <sstream>
 
 namespace cpp_client
 {
 
 namespace chess
 {
+
+    struct node
+    {
+        Piece piece;
+        std::string new_file;
+        int new_rank;
+        std::string promotion;
+    };
 
 /// <summary>
 /// This is the header file for building your Chess AI
@@ -76,8 +86,11 @@ public:
     void print_current_board();
 
     // You can add additional methods here.
-
-
+    void MovePawn(Piece pawn);
+    void MoveKing(Piece king);
+    bool MovePossible(std::string file, int rank);
+    bool OpponentLocated(std::string file, int rank);
+    std::vector<node> possible_moves;
 
     // ####################
     // Don't edit these!
@@ -92,9 +105,6 @@ public:
     // ####################
     // Don't edit these!
     // ####################
-
-private:
-    void MovePawn();
 };
 
 } // CHESS
