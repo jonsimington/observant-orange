@@ -91,6 +91,12 @@ bool AI::run_turn()
 
         if(piece->type == "King")
         {
+            if(player->in_check)
+            {
+                possible_moves.clear();
+                MoveKing(piece);
+                break;
+            }
             MoveKing(piece);
         }
 
@@ -216,7 +222,15 @@ void AI::MovePawn(Piece pawn)
     {
         if(MovePossible(pawn->file, move_location))
         {
-            SetUpMove(pawn, pawn->file, move_location, "");
+            if(move_location + player->rank_direction > 8 ||
+               move_location + player->rank_direction < 1)
+            {
+                PromotePawn(pawn, pawn->file, move_location);
+            }
+            else
+            {
+                SetUpMove(pawn, pawn->file, move_location, "");
+            }
         }
     }
 
@@ -534,6 +548,28 @@ void AI::MoveKnight(Piece knight)
        OpponentLocated(final_file, move_location))
     {
         SetUpMove(knight, final_file, move_location, "");
+    }
+}
+
+void AI::PromotePawn(Piece pawn, std::string file, int rank)
+{
+    int random_move = rand() % 4;
+
+    if(random_move == 0)
+    {
+        SetUpMove(pawn, file, rank, "Queen");
+    }
+    else if(random_move == 1)
+    {
+        SetUpMove(pawn, file, rank, "Rook");
+    }
+    else if(random_move == 2)
+    {
+        SetUpMove(pawn, file, rank, "Bishop");
+    }
+    else if(random_move == 3)
+    {
+        SetUpMove(pawn, file, rank, "Knight");
     }
 }
 
