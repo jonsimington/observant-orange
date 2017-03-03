@@ -109,6 +109,11 @@ bool AI::run_turn()
             MoveBishopOrQueen(piece);
             MoveRookOrQueen(piece);
         }
+
+        if(piece->type == "Knight")
+        {
+            MoveKnight(piece);
+        }
     }
 
     if(!possible_moves.empty())
@@ -458,6 +463,77 @@ void AI::MoveBishopOrQueen(Piece bishop_queen)
         {
             break;
         }
+    }
+}
+
+void AI::MoveKnight(Piece knight)
+{
+    int move_location = knight->rank;
+    int file_location = knight->file[0];
+    std::string final_file;
+
+    final_file = file_location + 2;
+    move_location -= player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+
+    final_file = file_location + 2;
+    move_location = knight->rank + player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+
+    final_file = file_location + 1;
+    move_location = knight->rank + player->rank_direction + player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+
+    final_file = file_location + 1;
+    move_location = knight->rank - player->rank_direction - player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+
+    final_file = file_location - 2;
+    move_location -= player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+    
+    final_file = file_location - 2;
+    move_location = knight->rank + player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+    
+    final_file = file_location - 1;
+    move_location = knight->rank + player->rank_direction + player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
+    }
+    
+    final_file = file_location - 1;
+    move_location = knight->rank - player->rank_direction - player->rank_direction;
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
+    {
+        SetUpMove(knight, final_file, move_location, "");
     }
 }
 

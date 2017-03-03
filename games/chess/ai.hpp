@@ -90,6 +90,7 @@ public:
     void MoveKing(Piece king);
     void MoveRookOrQueen(Piece rook);
     void MoveBishopOrQueen(Piece bishop);
+    void MoveKnight(Piece knight);
     void SetUpMove(Piece game_piece, std::string file, int rank, std::string promo);
     bool MovePossible(std::string file, int rank);
     bool OpponentLocated(std::string file, int rank);
