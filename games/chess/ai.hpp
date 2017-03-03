@@ -88,6 +88,8 @@ public:
     // You can add additional methods here.
     void MovePawn(Piece pawn);
     void MoveKing(Piece king);
+    void MoveRook(Piece rook);
+    void SetUpMove(Piece game_piece, std::string file, int rank, std::string promo);
     bool MovePossible(std::string file, int rank);
     bool OpponentLocated(std::string file, int rank);
     std::vector<node> possible_moves;

@@ -93,6 +93,11 @@ bool AI::run_turn()
         {
             MoveKing(piece);
         }
+
+        if(piece->type == "Rook")
+        {
+            MoveRook(piece);
+        }
     }
 
     if(!possible_moves.empty())
@@ -190,23 +195,14 @@ void AI::MovePawn(Piece pawn)
         if(MovePossible(pawn->file, move_location) &&
            MovePossible(pawn->file, move_location + player->rank_direction))
         {
-            move_location += player->rank_direction;
-            move_to_make.piece = pawn;
-            move_to_make.new_file = pawn->file;
-            move_to_make.new_rank = move_location;
-            move_to_make.promotion = "";
-            possible_moves.push_back(move_to_make);
+            SetUpMove(pawn, pawn->file, move_location, "");
         }
     }
     else
     {
         if(MovePossible(pawn->file, move_location))
         {
-            move_to_make.piece = pawn;
-            move_to_make.new_file = pawn->file;
-            move_to_make.new_rank = move_location;
-            move_to_make.promotion = "";
-            possible_moves.push_back(move_to_make);
+            SetUpMove(pawn, pawn->file, move_location, "");
         }
     }
 
@@ -216,21 +212,13 @@ void AI::MovePawn(Piece pawn)
     move_location = pawn->rank + player->rank_direction;
     if(OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = pawn;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(pawn, final_file, move_location, "");
     }
 
     final_file = file_location - 1;
     if(OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = pawn;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(pawn, final_file, move_location, "");
     }
 }
 
@@ -242,82 +230,150 @@ void AI::MoveKing(Piece king)
     node move_to_make;
 
     final_file = file_location + 1;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
     final_file = file_location - 1;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
     move_location = king->rank + player->rank_direction;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
     final_file = file_location + 1;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
-    if(MovePossible(king->file, move_location))
+    if(MovePossible(king->file, move_location) ||
+       OpponentLocated(king->file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = king->file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, king->file, move_location, "");
     }
 
     move_location = king->rank - player->rank_direction;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
     final_file = file_location - 1;
-    if(MovePossible(final_file, move_location))
+    if(MovePossible(final_file, move_location) ||
+       OpponentLocated(final_file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = final_file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, final_file, move_location, "");
     }
 
-    if(MovePossible(king->file, move_location))
+    if(MovePossible(king->file, move_location) ||
+       OpponentLocated(king->file, move_location))
     {
-        move_to_make.piece = king;
-        move_to_make.new_file = king->file;
-        move_to_make.new_rank = move_location;
-        move_to_make.promotion = "";
-        possible_moves.push_back(move_to_make);
+        SetUpMove(king, king->file, move_location, "");
     }
+}
+
+void AI::MoveRook(Piece rook)
+{
+    int move_location = rook->rank;
+    int file_location = rook->file[0];
+    std::string final_file;
+    node move_to_make;
+    move_to_make.piece = rook;
+
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location + 1 + i;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(rook, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(rook, final_file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location - 1 - i;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(rook, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(rook, final_file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for(int i = 0; i < 8; ++i)
+    {
+        move_location += player->rank_direction;
+        if(MovePossible(rook->file, move_location))
+        {
+            SetUpMove(rook, rook->file, move_location, "");
+        }
+        else if(OpponentLocated(rook->file, move_location))
+        {
+            SetUpMove(rook, rook->file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = rook->rank;
+    for(int i = 0; i < 8; ++i)
+    {
+        move_location -= player->rank_direction;
+        if(MovePossible(rook->file, move_location))
+        {
+            SetUpMove(rook, rook->file, move_location, "");
+        }
+        else if(OpponentLocated(rook->file, move_location))
+        {
+            SetUpMove(rook, rook->file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+void AI::SetUpMove(Piece game_piece, std::string file, int rank, std::string promo)
+{
+    node move_to_make;
+    move_to_make.piece = game_piece;
+    move_to_make.new_file = file;
+    move_to_make.new_rank = rank;
+    move_to_make.promotion = promo;
+    possible_moves.push_back(move_to_make);
 }
 
 bool AI::MovePossible(std::string file, int rank)
