@@ -96,7 +96,18 @@ bool AI::run_turn()
 
         if(piece->type == "Rook")
         {
-            MoveRook(piece);
+            MoveRookOrQueen(piece);
+        }
+
+        if(piece->type == "Bishop")
+        {
+            MoveBishopOrQueen(piece);
+        }
+
+        if(piece->type == "Queen")
+        {
+            MoveBishopOrQueen(piece);
+            MoveRookOrQueen(piece);
         }
     }
 
@@ -187,8 +198,6 @@ void AI::MovePawn(Piece pawn)
 {
     int move_location = 0;
 
-    node move_to_make;
-
     move_location = pawn->rank + player->rank_direction;
     if(!pawn->has_moved)
     {
@@ -227,7 +236,6 @@ void AI::MoveKing(Piece king)
     int move_location = king->rank;
     int file_location = king->file[0];
     std::string final_file;
-    node move_to_make;
 
     final_file = file_location + 1;
     if(MovePossible(final_file, move_location) ||
@@ -284,24 +292,22 @@ void AI::MoveKing(Piece king)
     }
 }
 
-void AI::MoveRook(Piece rook)
+void AI::MoveRookOrQueen(Piece rook_queen)
 {
-    int move_location = rook->rank;
-    int file_location = rook->file[0];
+    int move_location = rook_queen->rank;
+    int file_location = rook_queen->file[0];
     std::string final_file;
-    node move_to_make;
-    move_to_make.piece = rook;
 
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_location + 1 + i;
         if(MovePossible(final_file, move_location))
         {
-            SetUpMove(rook, final_file, move_location, "");
+            SetUpMove(rook_queen, final_file, move_location, "");
         }
         else if(OpponentLocated(final_file, move_location))
         {
-            SetUpMove(rook, final_file, move_location, "");
+            SetUpMove(rook_queen, final_file, move_location, "");
             break;
         }
         else
@@ -315,11 +321,11 @@ void AI::MoveRook(Piece rook)
         final_file = file_location - 1 - i;
         if(MovePossible(final_file, move_location))
         {
-            SetUpMove(rook, final_file, move_location, "");
+            SetUpMove(rook_queen, final_file, move_location, "");
         }
         else if(OpponentLocated(final_file, move_location))
         {
-            SetUpMove(rook, final_file, move_location, "");
+            SetUpMove(rook_queen, final_file, move_location, "");
             break;
         }
         else
@@ -331,13 +337,13 @@ void AI::MoveRook(Piece rook)
     for(int i = 0; i < 8; ++i)
     {
         move_location += player->rank_direction;
-        if(MovePossible(rook->file, move_location))
+        if(MovePossible(rook_queen->file, move_location))
         {
-            SetUpMove(rook, rook->file, move_location, "");
+            SetUpMove(rook_queen, rook_queen->file, move_location, "");
         }
-        else if(OpponentLocated(rook->file, move_location))
+        else if(OpponentLocated(rook_queen->file, move_location))
         {
-            SetUpMove(rook, rook->file, move_location, "");
+            SetUpMove(rook_queen, rook_queen->file, move_location, "");
             break;
         }
         else
@@ -346,17 +352,106 @@ void AI::MoveRook(Piece rook)
         }
     }
 
-    move_location = rook->rank;
+    move_location = rook_queen->rank;
     for(int i = 0; i < 8; ++i)
     {
         move_location -= player->rank_direction;
-        if(MovePossible(rook->file, move_location))
+        if(MovePossible(rook_queen->file, move_location))
         {
-            SetUpMove(rook, rook->file, move_location, "");
+            SetUpMove(rook_queen, rook_queen->file, move_location, "");
         }
-        else if(OpponentLocated(rook->file, move_location))
+        else if(OpponentLocated(rook_queen->file, move_location))
         {
-            SetUpMove(rook, rook->file, move_location, "");
+            SetUpMove(rook_queen, rook_queen->file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+void AI::MoveBishopOrQueen(Piece bishop_queen)
+{
+    int move_location = bishop_queen->rank;
+    int file_location = bishop_queen->file[0];
+    std::string final_file;
+
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location + 1 + i;
+        move_location -= player->rank_direction;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = bishop_queen->rank;
+    file_location = bishop_queen->file[0];
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location + 1 + i;
+        move_location += player->rank_direction;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = bishop_queen->rank;
+    file_location = bishop_queen->file[0];
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location - 1 - i;
+        move_location -= player->rank_direction;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = bishop_queen->rank;
+    file_location = bishop_queen->file[0];
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location - 1 - i;
+        move_location += player->rank_direction;
+        if(MovePossible(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
+        }
+        else if(OpponentLocated(final_file, move_location))
+        {
+            SetUpMove(bishop_queen, final_file, move_location, "");
             break;
         }
         else
