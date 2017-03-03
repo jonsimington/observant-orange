@@ -91,9 +91,10 @@ public:
     void MoveRookOrQueen(Piece rook);
     void MoveBishopOrQueen(Piece bishop);
     void MoveKnight(Piece knight);
+    bool WouldSpaceCheck(std::string file, int rank);
     void PromotePawn(Piece pawn, std::string file, int rank);
     void SetUpMove(Piece game_piece, std::string file, int rank, std::string promo);
-    bool MovePossible(std::string file, int rank);
+    bool EmptySpace(std::string file, int rank);
     bool OpponentLocated(std::string file, int rank);
     std::vector<node> possible_moves;
 
