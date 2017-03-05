@@ -95,11 +95,11 @@ bool AI::run_turn()
     {
         for(int j = 0; j < 8; ++j)
         {
-            /*if((FEN_board[i][j] == 'p' && player_lower_case) ||
+            if((FEN_board[i][j] == 'p' && player_lower_case) ||
                (FEN_board[i][j] == 'P' && !player_lower_case))
             {
                 MovePawn(i, j);
-            }*/
+            }
 
             if((FEN_board[i][j] == 'k' && player_lower_case) ||
                (FEN_board[i][j] == 'K' && !player_lower_case))
@@ -107,7 +107,7 @@ bool AI::run_turn()
                 MoveKing(i, j);
             }
 
-            /*if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
+            if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
                ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
             {
                 MoveRookOrQueen(i, j);
@@ -123,7 +123,7 @@ bool AI::run_turn()
                (FEN_board[i][j] == 'N' && !player_lower_case))
             {
                 MoveKnight(i, j);
-            }*/
+            }
         }
     }
 
@@ -141,7 +141,6 @@ bool AI::run_turn()
                 break;
             }
         }
-        //std::cout << "------------------------------\n";
 
         for(int i = 0; i < 8; ++i)
         {
@@ -177,7 +176,6 @@ bool AI::run_turn()
         possible_moves.erase(possible_moves.begin() + move_number);
     }
 
-    //std::cout << "++++++++++++++++++++++++++++++\n";
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
@@ -302,7 +300,7 @@ void AI::MoveKing(int rank, int file_num)
     int move_location = rank;
     int final_file;
 
-    /*final_file = file_num + 1;
+    final_file = file_num + 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
        !WouldSpaceCheck(final_file, move_location))
@@ -362,7 +360,7 @@ void AI::MoveKing(int rank, int file_num)
         !WouldSpaceCheck(file_num, move_location))
     {
         SetUpMove(file_num, file_num, rank, move_location, "");
-    }*/
+    }
 
     CheckForCastling(rank, file_num);
 }
@@ -705,8 +703,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             for(int i = 0; i < 8; ++i)
             {
                 attack_file = file_location + 1 + i;
-                //std::cout << "8Check Space: " << attack_file << " " << attack_rank << '\n';
-
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -721,8 +717,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             for(int i = 0; i < 8; ++i)
             {
                 attack_file = file_location - 1 - i;
-                //std::cout << "7Check Space: " << attack_file << " " << attack_rank << '\n';
-
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -740,8 +734,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             for(int i = 0; i < 8; ++i)
             {
                 attack_rank += 1;
-                //std::cout << "6Check Space: " << attack_file << " " << attack_rank << '\n';
-
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -757,8 +749,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             for(int i = 0; i < 8; ++i)
             {
                 attack_rank -= 1;
-                //std::cout << "5Check Space: " << attack_file << " " << attack_rank << '\n';
-
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -779,7 +769,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             {
                 attack_file = file_location + 1 + i;
                 attack_rank += 1;
-                //std::cout << "4Check Space: " << attack_file << " " << attack_rank << '\n';
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -796,7 +785,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             {
                 attack_file = file_location - 1 - i;
                 attack_rank += 1;
-                //std::cout << "3Check Space: " << attack_file << " " << attack_rank << '\n';
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -813,8 +801,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             {
                 attack_file = file_location + 1 + i;
                 attack_rank -= 1;
-                //std::cout << "2Check Space: " << attack_file << " " << attack_rank << '\n';
-
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
@@ -831,7 +817,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             {
                 attack_rank -= 1;
                 attack_file = file_location - 1 - i;
-                //std::cout << "1Check Space: " << attack_file << " " << attack_rank << '\n';
 
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
@@ -910,7 +895,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             }
         }
     }
-    //std::cout << "Nothing here\n";
     return false;
 }
 
