@@ -29,6 +29,16 @@ void AI::start()
 {
     // This is a good place to initialize any variables
     srand(time(NULL));
+    player_lower_case = false;
+
+    GenerateFENArray();
+    Piece temp = player->pieces[0];
+    int file_num = temp->file[0] - 'a';
+    char my_piece = FEN_board[temp->rank - 1][file_num];
+    if(islower(my_piece))
+    {
+        player_lower_case = true;
+    }
 }
 
 /// <summary>
@@ -56,7 +66,7 @@ void AI::ended(bool won, const std::string& reason)
 bool AI::run_turn()
 {
     // Here is where you'll want to code your AI.
-
+    GenerateFENArray();
     // We've provided sample code that:
     //    1) prints the board to the console
     //    2) prints the opponent's last move to the console
@@ -80,60 +90,81 @@ bool AI::run_turn()
     std::string random_file(1, 'a' + rand() % 8);
     int random_rank = (rand() % 8) + 1;
     random_piece->move(random_file, random_rank);*/
-    for(int i = 0; i < player->pieces.size(); ++i)
+    for(int i = 0; i < 8; ++i)
     {
-        Piece piece = player->pieces[i];
-
-        if(piece->type == "Pawn")
+        for(int j = 0; j < 8; ++j)
         {
-            MovePawn(piece);
-        }
-
-        if(piece->type == "King")
-        {
-            if(player->in_check)
+            if((FEN_board[i][j] == 'p' && player_lower_case) ||
+               (FEN_board[i][j] == 'P' && !player_lower_case))
             {
-                possible_moves.clear();
-                MoveKing(piece);
+                MovePawn(i, j);
+            }
+
+            if((FEN_board[i][j] == 'k' && player_lower_case) ||
+               (FEN_board[i][j] == 'K' && !player_lower_case))
+            {
+                MoveKing(i, j);
+            }
+
+            if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
+               ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
+            {
+                MoveRookOrQueen(i, j);
+            }
+
+            if(((FEN_board[i][j] == 'b' || FEN_board[i][j] == 'q') && player_lower_case) ||
+               ((FEN_board[i][j] == 'B' || FEN_board[i][j] == 'Q') && !player_lower_case))
+            {
+                MoveBishopOrQueen(i, j);
+            }
+
+            if((FEN_board[i][j] == 'n' && player_lower_case) ||
+               (FEN_board[i][j] == 'N' && !player_lower_case))
+            {
+                MoveKnight(i, j);
+            }
+        }
+    }
+
+    bool move_made = false;
+    while(!possible_moves.empty() && !move_made)
+    {
+        Piece piece_to_move;
+        int move_number = rand() % possible_moves.size();
+        for(int i = 0; i < player->pieces.size(); ++i)
+        {
+            if(player->pieces[i]->rank == possible_moves[move_number].old_rank &&
+               player->pieces[i]->file == possible_moves[move_number].old_file)
+            {
+                piece_to_move = player->pieces[i];
                 break;
             }
-            MoveKing(piece);
         }
 
-        if(piece->type == "Rook")
+        /*for(int i = 0; i < 8; ++i)
         {
-            MoveRookOrQueen(piece);
-        }
+            for(int j = 0; j < 8; ++j)
+            {
+                if(((FEN_board[i][j] == 'k' && player_lower_case) ||
+                   (FEN_board[i][j] == 'K' && !player_lower_case)))
+                {
+                    std::cout << "Found the king\n";
 
-        if(piece->type == "Bishop")
-        {
-            MoveBishopOrQueen(piece);
-        }
-
-        if(piece->type == "Queen")
-        {
-            MoveBishopOrQueen(piece);
-            MoveRookOrQueen(piece);
-        }
-
-        if(piece->type == "Knight")
-        {
-            MoveKnight(piece);
-        }
+                    if(!WouldSpaceCheck(i, j))
+                    {
+                        std::cout << "Making a move\n";*/
+                        piece_to_move->move(possible_moves[move_number].new_file,
+                                        possible_moves[move_number].new_rank,
+                                        possible_moves[move_number].promotion);
+                        move_made = true;
+                    /*}
+                    break;
+                }
+            }
+        }*/
     }
 
-    if(!possible_moves.empty())
-    {
-        std::cout << "Possible moves exist\n";
-        int move_number = rand() % possible_moves.size();
-        Piece& piece_to_move = possible_moves[move_number].piece;
-        std::string new_file = possible_moves[move_number].new_file;
-        int new_rank = possible_moves[move_number].new_rank;
-        std::string promo = possible_moves[move_number].promotion;
-        piece_to_move->move(new_file, new_rank, promo);
-        possible_moves.clear();
-    }
-
+    possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
 
@@ -205,136 +236,226 @@ void AI::print_current_board()
 
 // You can add additional methods here for your AI to call
 
-void AI::MovePawn(Piece pawn)
+void AI::MovePawn(int rank, int file_num)
 {
     int move_location = 0;
+    Piece pawn;
+    std::string pawn_file;
+    pawn_file = file_num + 97;
 
-    move_location = pawn->rank + player->rank_direction;
+    for(int i = 0; i < player->pieces.size(); ++i)
+    {
+        if(player->pieces[i]->rank == rank + 1 &&
+           player->pieces[i]->file == pawn_file &&
+           player->pieces[i]->type == "Pawn")
+        {
+            pawn = player->pieces[i];
+            break;
+        }
+    }
+
+    move_location = rank + player->rank_direction;
     if(!pawn->has_moved)
     {
-        if(EmptySpace(pawn->file, move_location) &&
-           EmptySpace(pawn->file, move_location + player->rank_direction))
+        if(EmptySpace(file_num, move_location) &&
+           EmptySpace(file_num, move_location + player->rank_direction))
         {
-            SetUpMove(pawn, pawn->file, move_location, "");
+            SetUpMove(file_num, file_num, rank, move_location + player->rank_direction, "");
         }
     }
     else
     {
-        if(EmptySpace(pawn->file, move_location))
+        if(EmptySpace(file_num, move_location))
         {
             if(move_location + player->rank_direction > 8 ||
                move_location + player->rank_direction < 1)
             {
-                PromotePawn(pawn, pawn->file, move_location);
+                PromotePawn(file_num, rank, move_location);
             }
             else
             {
-                SetUpMove(pawn, pawn->file, move_location, "");
+                SetUpMove(file_num, file_num, rank, move_location, "");
             }
         }
     }
 
-    int file_location = pawn->file[0];
-    std::string final_file;
-    final_file = file_location + 1;
-    move_location = pawn->rank + player->rank_direction;
-    if(OpponentLocated(final_file, move_location))
+    int file_location = file_num + 1;
+    if(OpponentLocated(file_location, move_location))
     {
-        SetUpMove(pawn, final_file, move_location, "");
+        SetUpMove(file_num, file_location, rank, move_location, "");
     }
 
-    final_file = file_location - 1;
-    if(OpponentLocated(final_file, move_location))
+    file_location = file_num - 1;
+    if(OpponentLocated(file_location, move_location))
     {
-        SetUpMove(pawn, final_file, move_location, "");
+        SetUpMove(file_num, file_location, rank, move_location, "");
     }
 }
 
-void AI::MoveKing(Piece king)
+void AI::MoveKing(int rank, int file_num)
 {
-    int move_location = king->rank;
-    int file_location = king->file[0];
-    std::string final_file;
+    int move_location = rank;
+    int final_file;
 
-    final_file = file_location + 1;
+    final_file = file_num + 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
        !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    final_file = file_location - 1;
+    final_file = file_num - 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
         !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    move_location = king->rank + player->rank_direction;
+    move_location = rank + player->rank_direction;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
         !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    final_file = file_location + 1;
+    final_file = file_num + 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
         !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    if((EmptySpace(king->file, move_location) ||
-       OpponentLocated(king->file, move_location)) &&
-        !WouldSpaceCheck(final_file, move_location))
+    if((EmptySpace(file_num, move_location) ||
+       OpponentLocated(file_num, move_location)) &&
+        !WouldSpaceCheck(file_num, move_location))
     {
-        SetUpMove(king, king->file, move_location, "");
+        SetUpMove(file_num, file_num, rank, move_location, "");
     }
 
-    move_location = king->rank - player->rank_direction;
+    move_location = rank - player->rank_direction;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
         !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    final_file = file_location - 1;
+    final_file = file_num - 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
         !WouldSpaceCheck(final_file, move_location))
     {
-        SetUpMove(king, final_file, move_location, "");
+        SetUpMove(file_num, final_file, rank, move_location, "");
     }
 
-    if((EmptySpace(king->file, move_location) ||
-       OpponentLocated(king->file, move_location)) &&
-        !WouldSpaceCheck(final_file, move_location))
+    if((EmptySpace(file_num, move_location) ||
+       OpponentLocated(file_num, move_location)) &&
+        !WouldSpaceCheck(file_num, move_location))
     {
-        SetUpMove(king, king->file, move_location, "");
+        SetUpMove(file_num, file_num, rank, move_location, "");
     }
 }
 
-void AI::MoveRookOrQueen(Piece rook_queen)
+void AI::MoveRookOrQueen(int rank, int file_num)
 {
-    int move_location = rook_queen->rank;
-    int file_location = rook_queen->file[0];
+    int move_location = rank;
+    std::string final_file;
+
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_num + 1 + i;
+        if(EmptySpace(file_num + 1 + i, move_location))
+        {
+            SetUpMove(file_num, file_num + 1 + i, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_num + 1 + i, move_location))
+        {
+            SetUpMove(file_num, file_num + 1 + i, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_num - 1 - i;
+        if(EmptySpace(file_num - 1 - i, move_location))
+        {
+            SetUpMove(file_num, file_num - 1 - i, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_num - 1 - i, move_location))
+        {
+            SetUpMove(file_num, file_num - 1 - i, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    for(int i = 0; i < 8; ++i)
+    {
+        move_location += player->rank_direction;
+        if(EmptySpace(file_num, move_location))
+        {
+            SetUpMove(file_num, file_num, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_num, move_location))
+        {
+            SetUpMove(file_num, file_num, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = rank;
+    for(int i = 0; i < 8; ++i)
+    {
+        move_location -= player->rank_direction;
+        if(EmptySpace(file_num, move_location))
+        {
+            SetUpMove(file_num, file_num, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_num, move_location))
+        {
+            SetUpMove(file_num, file_num, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+void AI::MoveBishopOrQueen(int rank, int file_num)
+{
+    int move_location = rank;
+    int file_location = file_num;
     std::string final_file;
 
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_location + 1 + i;
-        if(EmptySpace(final_file, move_location))
+        move_location -= player->rank_direction;
+        if(EmptySpace(file_location + 1 + i, move_location))
         {
-            SetUpMove(rook_queen, final_file, move_location, "");
+            SetUpMove(file_num, file_location + 1 + i, rank, move_location, "");
         }
-        else if(OpponentLocated(final_file, move_location))
+        else if(OpponentLocated(file_location + 1 + i, move_location))
         {
-            SetUpMove(rook_queen, final_file, move_location, "");
+            SetUpMove(file_num, file_location + 1 + i, rank, move_location, "");
             break;
         }
         else
@@ -343,53 +464,61 @@ void AI::MoveRookOrQueen(Piece rook_queen)
         }
     }
 
+    move_location = rank;
+    file_location = file_num;
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location + 1 + i;
+        move_location += player->rank_direction;
+        if(EmptySpace(file_location + 1 + i, move_location))
+        {
+            SetUpMove(file_num, file_location + 1 + i, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_location + 1 + i, move_location))
+        {
+            SetUpMove(file_num, file_location + 1 + i, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = rank;
+    file_location = file_num;
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_location - 1 - i;
-        if(EmptySpace(final_file, move_location))
-        {
-            SetUpMove(rook_queen, final_file, move_location, "");
-        }
-        else if(OpponentLocated(final_file, move_location))
-        {
-            SetUpMove(rook_queen, final_file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    for(int i = 0; i < 8; ++i)
-    {
-        move_location += player->rank_direction;
-        if(EmptySpace(rook_queen->file, move_location))
-        {
-            SetUpMove(rook_queen, rook_queen->file, move_location, "");
-        }
-        else if(OpponentLocated(rook_queen->file, move_location))
-        {
-            SetUpMove(rook_queen, rook_queen->file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    move_location = rook_queen->rank;
-    for(int i = 0; i < 8; ++i)
-    {
         move_location -= player->rank_direction;
-        if(EmptySpace(rook_queen->file, move_location))
+        if(EmptySpace(file_location - 1 - i, move_location))
         {
-            SetUpMove(rook_queen, rook_queen->file, move_location, "");
+            SetUpMove(file_num, file_location - 1 - i, rank, move_location, "");
         }
-        else if(OpponentLocated(rook_queen->file, move_location))
+        else if(OpponentLocated(file_location - 1 - i, move_location))
         {
-            SetUpMove(rook_queen, rook_queen->file, move_location, "");
+            SetUpMove(file_num, file_location - 1 - i, rank, move_location, "");
+            break;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    move_location = rank;
+    file_location = file_num;
+    for(int i = 0; i < 8; ++i)
+    {
+        final_file = file_location - 1 - i;
+        move_location += player->rank_direction;
+        if(EmptySpace(file_location - 1 - i, move_location))
+        {
+            SetUpMove(file_num, file_location - 1 - i, rank, move_location, "");
+        }
+        else if(OpponentLocated(file_location - 1 - i, move_location))
+        {
+            SetUpMove(file_num, file_location - 1 - i, rank, move_location, "");
             break;
         }
         else
@@ -399,205 +528,125 @@ void AI::MoveRookOrQueen(Piece rook_queen)
     }
 }
 
-void AI::MoveBishopOrQueen(Piece bishop_queen)
+void AI::MoveKnight(int rank, int file_num)
 {
-    int move_location = bishop_queen->rank;
-    int file_location = bishop_queen->file[0];
-    std::string final_file;
-
-    for(int i = 0; i < 8; ++i)
-    {
-        final_file = file_location + 1 + i;
-        move_location -= player->rank_direction;
-        if(EmptySpace(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-        }
-        else if(OpponentLocated(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    move_location = bishop_queen->rank;
-    file_location = bishop_queen->file[0];
-    for(int i = 0; i < 8; ++i)
-    {
-        final_file = file_location + 1 + i;
-        move_location += player->rank_direction;
-        if(EmptySpace(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-        }
-        else if(OpponentLocated(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    move_location = bishop_queen->rank;
-    file_location = bishop_queen->file[0];
-    for(int i = 0; i < 8; ++i)
-    {
-        final_file = file_location - 1 - i;
-        move_location -= player->rank_direction;
-        if(EmptySpace(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-        }
-        else if(OpponentLocated(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    move_location = bishop_queen->rank;
-    file_location = bishop_queen->file[0];
-    for(int i = 0; i < 8; ++i)
-    {
-        final_file = file_location - 1 - i;
-        move_location += player->rank_direction;
-        if(EmptySpace(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-        }
-        else if(OpponentLocated(final_file, move_location))
-        {
-            SetUpMove(bishop_queen, final_file, move_location, "");
-            break;
-        }
-        else
-        {
-            break;
-        }
-    }
-}
-
-void AI::MoveKnight(Piece knight)
-{
-    int move_location = knight->rank;
-    int file_location = knight->file[0];
+    int move_location = rank;
+    int file_location = file_num;
     std::string final_file;
 
     final_file = file_location + 2;
     move_location -= player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+    if(EmptySpace(file_location + 2, move_location) ||
+       OpponentLocated(file_location + 2, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location + 2, rank, move_location, "");
     }
 
-    final_file = file_location + 2;
-    move_location = knight->rank + player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+    move_location = rank + player->rank_direction;
+    if(EmptySpace(file_location + 2, move_location) ||
+       OpponentLocated(file_location + 2, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
-    }
-
-    final_file = file_location + 1;
-    move_location = knight->rank + player->rank_direction + player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
-    {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location + 2, rank, move_location, "");
     }
 
     final_file = file_location + 1;
-    move_location = knight->rank - player->rank_direction - player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+    move_location = rank + player->rank_direction + player->rank_direction;
+    if(EmptySpace(file_location + 1, move_location) ||
+       OpponentLocated(file_location + 1, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location + 1, rank, move_location, "");
+    }
+
+    move_location = rank - player->rank_direction - player->rank_direction;
+    if(EmptySpace(file_location + 1, move_location) ||
+       OpponentLocated(file_location + 1, move_location))
+    {
+        SetUpMove(file_num, file_location + 1, rank, move_location, "");
     }
 
     final_file = file_location - 2;
-    move_location -= player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+    move_location = rank - player->rank_direction;
+    if(EmptySpace(file_location - 2, move_location) ||
+       OpponentLocated(file_location - 2, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location - 2, rank, move_location, "");
     }
-    
-    final_file = file_location - 2;
-    move_location = knight->rank + player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+
+    move_location = rank + player->rank_direction;
+    if(EmptySpace(file_location - 2, move_location) ||
+       OpponentLocated(file_location - 2, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
-    }
-    
-    final_file = file_location - 1;
-    move_location = knight->rank + player->rank_direction + player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
-    {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location - 2, rank, move_location, "");
     }
     
     final_file = file_location - 1;
-    move_location = knight->rank - player->rank_direction - player->rank_direction;
-    if(EmptySpace(final_file, move_location) ||
-       OpponentLocated(final_file, move_location))
+    move_location = rank + player->rank_direction + player->rank_direction;
+    if(EmptySpace(file_location - 1, move_location) ||
+       OpponentLocated(file_location - 1, move_location))
     {
-        SetUpMove(knight, final_file, move_location, "");
+        SetUpMove(file_num, file_location - 1, rank, move_location, "");
+    }
+
+    move_location = rank - player->rank_direction - player->rank_direction;
+    if(EmptySpace(file_location - 1, move_location) ||
+       OpponentLocated(file_location - 1, move_location))
+    {
+        SetUpMove(file_num, file_location - 1, rank, move_location, "");
     }
 }
 
-void AI::PromotePawn(Piece pawn, std::string file, int rank)
+void AI::PromotePawn(int file_num, int old_rank, int new_rank)
 {
     int random_move = rand() % 4;
 
     if(random_move == 0)
     {
-        SetUpMove(pawn, file, rank, "Queen");
+        SetUpMove(file_num, file_num, old_rank, new_rank, "Queen");
     }
     else if(random_move == 1)
     {
-        SetUpMove(pawn, file, rank, "Rook");
+        SetUpMove(file_num, file_num, old_rank, new_rank, "Rook");
     }
     else if(random_move == 2)
     {
-        SetUpMove(pawn, file, rank, "Bishop");
+        SetUpMove(file_num, file_num, old_rank, new_rank, "Bishop");
     }
     else if(random_move == 3)
     {
-        SetUpMove(pawn, file, rank, "Knight");
+        SetUpMove(file_num, file_num, old_rank, new_rank, "Knight");
     }
 }
 
-void AI::SetUpMove(Piece game_piece, std::string file, int rank, std::string promo)
+void AI::SetUpMove(int old_file, int new_file, int old_rank,
+                   int new_rank, std::string promo)
 {
     node move_to_make;
-    move_to_make.piece = game_piece;
-    move_to_make.new_file = file;
-    move_to_make.new_rank = rank;
+    for(int i = 0; i <8; ++i)
+    {
+        for(int j =0; j < 8; ++j)
+        {
+            move_to_make.current_FEN[i][j] = FEN_board[i][j];
+        }
+    }
+
+    move_to_make.current_FEN[new_rank][new_file] = FEN_board[old_rank][old_file];
+    move_to_make.current_FEN[old_rank][old_file] = '.';
+
+    move_to_make.old_file = old_file + 'a';
+    move_to_make.new_file = new_file + 'a';
+    move_to_make.old_rank = old_rank + 1;
+    move_to_make.new_rank = new_rank + 1;
     move_to_make.promotion = promo;
     possible_moves.push_back(move_to_make);
 }
 
-bool AI::WouldSpaceCheck(std::string file, int rank)
+bool AI::WouldSpaceCheck(int file_num, int rank)
 {
     int attack_rank = rank;
-    int king_file = file[0];
     std::string attack_file;
+    attack_file = file_num + 97;
 
-    if(king_file < 97 || king_file > 104 || attack_rank > 8 || attack_rank < 1)
+    if(file_num < 0 || file_num > 7 || file_num > 7 || file_num < 0)
     {
         return false;
     }
@@ -608,13 +657,13 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
         if(piece->type == "Pawn" || piece->type == "King" ||
            piece->type == "Bishop" || piece->type == "Queen")
         {
-            attack_file = king_file + 1;
+            attack_file = file_num + 1;
             if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
                (piece->file == attack_file && piece->rank == attack_rank - 1))
             {
                 return true;
             }
-            attack_file = king_file - 1;
+            attack_file = file_num - 1;
             if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
                (piece->file == attack_file && piece->rank == attack_rank - 1))
             {
@@ -622,20 +671,21 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
             }
         }
 
+        attack_file = file_num + 97;
         if(piece->type == "Rook" || piece->type == "King" ||
            piece->type == "Queen")
         {
-            if((piece->file == file && piece->rank == attack_rank + 1) ||
-               (piece->file == file && piece->rank == attack_rank - 1))
+            if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
+               (piece->file == attack_file && piece->rank == attack_rank - 1))
             {
                 return true;
             }
-            attack_file = king_file - 1;
+            attack_file = file_num - 1;
             if((piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
-            attack_file = king_file + 1;
+            attack_file = file_num + 1;
             if((piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
@@ -646,13 +696,13 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
         {
             for(int i = 0; i < 8; ++i)
             {
-                attack_file = king_file + 1 + i;
+                attack_file = file_num + 1 + i;
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
                     return true;
                 }
-                else if(EmptySpace(attack_file, attack_rank))
+                else if(EmptySpace(file_num + 1 + i, attack_rank))
                 {
                     break;
                 }
@@ -660,19 +710,20 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
             
             for(int i = 0; i < 8; ++i)
             {
-                attack_file = king_file - 1 - i;
+                attack_file = file_num - 1 - i;
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
                     return true;
                 }
-                else if(EmptySpace(attack_file, attack_rank))
+                else if(EmptySpace(file_num - 1 - i, attack_rank))
                 {
                     break;
                 }
             }
 
             attack_rank = rank;
+            attack_file = file_num + 97;
             for(int i = 0; i < 8; ++i)
             {
                 attack_rank += player->rank_direction;
@@ -681,7 +732,7 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
                 {
                     return true;
                 }
-                else if(EmptySpace(attack_file, attack_rank))
+                else if(EmptySpace(file_num, attack_rank))
                 {
                     break;
                 }
@@ -696,10 +747,71 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
                 {
                     return true;
                 }
-                else if(EmptySpace(attack_file, attack_rank))
+                else if(EmptySpace(file_num, attack_rank))
                 {
                     break;
                 }
+            }
+        }
+
+        if(piece->type == "Knight")
+        {
+            attack_file = file_num - 1;
+            attack_rank = piece->rank + player->rank_direction + player->rank_direction;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+
+            attack_file = file_num + 1;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+
+            attack_rank = piece->rank - player->rank_direction - player->rank_direction;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+
+            attack_file = file_num - 1;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+
+            attack_file = file_num - 2;
+            attack_rank = piece->rank + player->rank_direction;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+            
+            attack_file = file_num + 2;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+            
+            attack_rank = piece->rank - player->rank_direction;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+            
+            attack_file = file_num - 2;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
             }
         }
     }
@@ -707,46 +819,99 @@ bool AI::WouldSpaceCheck(std::string file, int rank)
     return false;
 }
 
-bool AI::EmptySpace(std::string file, int rank)
+bool AI::EmptySpace(int file_num, int rank)
 {
-    int file_num;
-    file_num = file[0];
-
-    if(file_num < 97 || file_num > 104 || rank > 8 || rank < 1)
+    if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
         return false;
     }
 
-    for(int i = 0; i < game->pieces.size(); ++i)
+    if(FEN_board[rank][file_num] == '.')
     {
-        if(game->pieces[i]->file == file && game->pieces[i]->rank == rank)
-        {
-            return false;
-        }
+        return true;
     }
 
-    return true;
+    return false;
 }
 
-bool AI::OpponentLocated(std::string file, int rank)
+void AI::GenerateFENArray()
 {
-    int file_num;
-    file_num = file[0];
-    
-    if(file_num < 97 || file_num > 104 || rank > 8 || rank < 1)
+    std::string fen = game->fen;
+
+    for(int rank = 7; rank >= 0; --rank)
+    {
+        for(int i = 0; i < 8; ++i)
+        {
+            FEN_board[rank][i] = '0';
+        }
+    }
+
+    int piece_num = 0;
+
+    for(int rank = 7; rank >= 0; --rank)
+    {
+        int slash = fen.find('/');
+        if(slash == -1)
+        {
+            slash = fen.find(' ');
+        }
+        int column = 0;
+        for(int i = 0; i < slash; ++i)
+        {
+            if(isdigit(fen[i]))
+            {
+                int empty_spaces = fen[i] - '0';
+                for(int j = 0; j < empty_spaces; ++j)
+                {
+                    FEN_board[rank][j + column] = '.';
+                    ++piece_num;
+                }
+                column += empty_spaces;
+            }
+            else
+            {
+                FEN_board[rank][column] = fen[i];
+                ++column;
+                ++piece_num;
+            }
+        }
+        fen = fen.substr(slash+1);
+    }
+}
+
+void AI::PrintFENArray()
+{
+    std::cout << "++++++++++++++++++++\n";
+    for(int rank = 7; rank >= 0; --rank)
+    {
+        for(int i = 0; i < 8; ++i)
+        {
+            std::cout << FEN_board[rank][i];
+            std::cout << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "++++++++++++++++++++\n";
+}
+
+bool AI::OpponentLocated(int file_num, int rank)
+{
+    if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
         return false;
     }
-    
-    for(int i = 0; i < game->pieces.size(); ++i)
+
+    if(islower(FEN_board[rank][file_num]) && !player_lower_case &&
+       FEN_board[rank][file_num] != '.')
     {
-        if(game->pieces[i]->file == file && game->pieces[i]->rank == rank &&
-           game->pieces[i]->owner == player->opponent)
-        {
-            return true;
-        }
+        return true;
     }
-    
+    else if(!islower(FEN_board[rank][file_num]) && player_lower_case &&
+            FEN_board[rank][file_num] != '.')
+    {
+        return true;
+    }
+
     return false;
 }
 

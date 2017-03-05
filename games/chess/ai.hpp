@@ -14,6 +14,7 @@
 // You can add additional #includes here
 #include <stdlib.h>
 #include <sstream>
+#include <ctype.h>
 
 namespace cpp_client
 {
@@ -23,8 +24,10 @@ namespace chess
 
     struct node
     {
-        Piece piece;
+        char current_FEN[8][8];
+        std::string old_file;
         std::string new_file;
+        int old_rank;
         int new_rank;
         std::string promotion;
     };
@@ -86,17 +89,23 @@ public:
     void print_current_board();
 
     // You can add additional methods here.
-    void MovePawn(Piece pawn);
-    void MoveKing(Piece king);
-    void MoveRookOrQueen(Piece rook);
-    void MoveBishopOrQueen(Piece bishop);
-    void MoveKnight(Piece knight);
-    bool WouldSpaceCheck(std::string file, int rank);
-    void PromotePawn(Piece pawn, std::string file, int rank);
-    void SetUpMove(Piece game_piece, std::string file, int rank, std::string promo);
-    bool EmptySpace(std::string file, int rank);
-    bool OpponentLocated(std::string file, int rank);
+    void GenerateFENArray();
+    void PrintFENArray();
+    void MovePawn(int rank, int file_num);
+    void MoveKing(int rank, int file_num);
+    void MoveRookOrQueen(int rank, int file_num);
+    void MoveBishopOrQueen(int rank, int file_num);
+    void MoveKnight(int rank, int file_num);
+    bool WouldSpaceCheck(int file_num, int rank);
+    void PromotePawn(int file_num, int old_rank, int new_rank);
+    void SetUpMove(int old_file, int new_file, int old_rank,
+                    int new_rank, std::string promo);
+    bool EmptySpace(int file_num, int rank);
+    bool OpponentLocated(int file_num, int rank);
     std::vector<node> possible_moves;
+    std::vector<Piece> temp_pieces;
+    char FEN_board[8][8];
+    bool player_lower_case;
 
     // ####################
     // Don't edit these!
