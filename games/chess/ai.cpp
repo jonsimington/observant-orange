@@ -30,7 +30,7 @@ void AI::start()
     // This is a good place to initialize any variables
     srand(time(NULL));
     player_lower_case = false;
-
+    promo_num = 0;
     GenerateFENArray();
     Piece temp = player->pieces[0];
     int file_num = temp->file[0] - 'a';
@@ -56,6 +56,7 @@ void AI::game_updated()
 /// <param name="reason">An explanation for why you either won or lost</param>
 void AI::ended(bool won, const std::string& reason)
 {
+    std::cout << "Number of promotions: " << promo_num << '\n';
     // You can do any cleanup of your AI here.  The program ends when this function returns.
 }
 
@@ -140,30 +141,47 @@ bool AI::run_turn()
                 break;
             }
         }
+        //std::cout << "------------------------------\n";
 
-        /*for(int i = 0; i < 8; ++i)
+        for(int i = 0; i < 8; ++i)
         {
             for(int j = 0; j < 8; ++j)
             {
-                if(((FEN_board[i][j] == 'k' && player_lower_case) ||
-                   (FEN_board[i][j] == 'K' && !player_lower_case)))
-                {
-                    std::cout << "Found the king\n";
+                FEN_board[i][j] = possible_moves[move_number].current_FEN[i][j];
+            }
+        }
 
-                    if(!WouldSpaceCheck(i, j))
+        for(int i = 0; i < 8 && !move_made; ++i)
+        {
+            for(int j = 0; j < 8 && !move_made; ++j)
+            {
+                if(((possible_moves[move_number].current_FEN[i][j] == 'k'
+                     && player_lower_case) ||
+                   (possible_moves[move_number].current_FEN[i][j] == 'K'
+                    && !player_lower_case)))
+                {
+                   // std::cout << "Moving " << piece_to_move-> type << "\n";
+                    if(!WouldSpaceCheck(j, i))
                     {
-                        std::cout << "Making a move\n";*/
+                        if(possible_moves[move_number].promotion != "")
+                        {
+                            ++promo_num;
+                        }
                         piece_to_move->move(possible_moves[move_number].new_file,
                                         possible_moves[move_number].new_rank,
                                         possible_moves[move_number].promotion);
                         move_made = true;
-                    /*}
+                    }
                     break;
+                    i = 8;
                 }
             }
-        }*/
+        }
+
+        possible_moves.erase(possible_moves.begin() + move_number);
     }
 
+    //std::cout << "++++++++++++++++++++++++++++++\n";
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
@@ -267,8 +285,8 @@ void AI::MovePawn(int rank, int file_num)
     {
         if(EmptySpace(file_num, move_location))
         {
-            if(move_location + player->rank_direction > 8 ||
-               move_location + player->rank_direction < 1)
+            if(move_location + player->rank_direction > 7 ||
+               move_location + player->rank_direction < 0)
             {
                 PromotePawn(file_num, rank, move_location);
             }
@@ -642,28 +660,30 @@ void AI::SetUpMove(int old_file, int new_file, int old_rank,
 
 bool AI::WouldSpaceCheck(int file_num, int rank)
 {
-    int attack_rank = rank;
-    std::string attack_file;
-    attack_file = file_num + 97;
-
-    if(file_num < 0 || file_num > 7 || file_num > 7 || file_num < 0)
+    if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
         return false;
     }
 
-    for(int i = 0; i < player->opponent->pieces.size(); ++i)
+    for(int j = 0; j < player->opponent->pieces.size(); ++j)
     {
-        Piece piece = player->opponent->pieces[i];
+        int attack_rank = rank + 1;
+        std::string attack_file;
+        int file_location = file_num + 97;
+        attack_file = file_location;
+        Piece piece = player->opponent->pieces[j];
+        //std::cout << "Type: " << piece->type << '\n';
+
         if(piece->type == "Pawn" || piece->type == "King" ||
            piece->type == "Bishop" || piece->type == "Queen")
         {
-            attack_file = file_num + 1;
+            attack_file = file_location + 1;
             if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
                (piece->file == attack_file && piece->rank == attack_rank - 1))
             {
                 return true;
             }
-            attack_file = file_num - 1;
+            attack_file = file_location - 1;
             if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
                (piece->file == attack_file && piece->rank == attack_rank - 1))
             {
@@ -671,7 +691,7 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             }
         }
 
-        attack_file = file_num + 97;
+        attack_file = file_location;
         if(piece->type == "Rook" || piece->type == "King" ||
            piece->type == "Queen")
         {
@@ -680,12 +700,12 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             {
                 return true;
             }
-            attack_file = file_num - 1;
+            attack_file = file_location - 1;
             if((piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
-            attack_file = file_num + 1;
+            attack_file = file_location + 1;
             if((piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
@@ -696,118 +716,205 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
         {
             for(int i = 0; i < 8; ++i)
             {
-                attack_file = file_num + 1 + i;
+                attack_file = file_location + 1 + i;
+                //std::cout << "8Check Space: " << attack_file << " " << attack_rank << '\n';
+
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
                     return true;
                 }
-                else if(EmptySpace(file_num + 1 + i, attack_rank))
-                {
-                    break;
-                }
-            }
-            
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_file = file_num - 1 - i;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
-                {
-                    return true;
-                }
-                else if(EmptySpace(file_num - 1 - i, attack_rank))
+                else if(!EmptySpace(file_num + 1 + i, rank))
                 {
                     break;
                 }
             }
 
-            attack_rank = rank;
-            attack_file = file_num + 97;
             for(int i = 0; i < 8; ++i)
             {
-                attack_rank += player->rank_direction;
+                attack_file = file_location - 1 - i;
+                //std::cout << "7Check Space: " << attack_file << " " << attack_rank << '\n';
+
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
                     return true;
                 }
-                else if(EmptySpace(file_num, attack_rank))
+                else if(!EmptySpace(file_num - 1 - i, rank))
+                {
+
+                    break;
+                }
+            }
+
+            attack_rank = rank + 1;
+            attack_file = file_location;
+            for(int i = 0; i < 8; ++i)
+            {
+                attack_rank += 1;
+                //std::cout << "6Check Space: " << attack_file << " " << attack_rank << '\n';
+
+                if((piece->file == attack_file && piece->rank == attack_rank) ||
+                   (piece->file == attack_file && piece->rank == attack_rank))
+                {
+                    return true;
+                }
+                else if(!EmptySpace(file_num, attack_rank - 1))
                 {
                     break;
                 }
             }
 
-            attack_rank = rank;
+            attack_rank = rank + 1;
             for(int i = 0; i < 8; ++i)
             {
-                attack_rank -= player->rank_direction;
+                attack_rank -= 1;
+                //std::cout << "5Check Space: " << attack_file << " " << attack_rank << '\n';
+
                 if((piece->file == attack_file && piece->rank == attack_rank) ||
                    (piece->file == attack_file && piece->rank == attack_rank))
                 {
                     return true;
                 }
-                else if(EmptySpace(file_num, attack_rank))
+                else if(!EmptySpace(file_num, attack_rank - 1))
                 {
                     break;
                 }
             }
         }
 
+        attack_rank = rank + 1;
+        attack_file = file_location;
+        if(piece->type == "Bishop" || piece->type == "Queen")
+        {
+            for(int i = 0; i < 8; ++i)
+            {
+                attack_file = file_location + 1 + i;
+                attack_rank += 1;
+                //std::cout << "4Check Space: " << attack_file << " " << attack_rank << '\n';
+                if((piece->file == attack_file && piece->rank == attack_rank) ||
+                   (piece->file == attack_file && piece->rank == attack_rank))
+                {
+                    return true;
+                }
+                else if(!EmptySpace(file_num + 1 + i, attack_rank - 1))
+                {
+                    break;
+                }
+            }
+
+            attack_rank = rank + 1;
+            for(int i = 0; i < 8; ++i)
+            {
+                attack_file = file_location - 1 - i;
+                attack_rank += 1;
+                //std::cout << "3Check Space: " << attack_file << " " << attack_rank << '\n';
+                if((piece->file == attack_file && piece->rank == attack_rank) ||
+                   (piece->file == attack_file && piece->rank == attack_rank))
+                {
+                    return true;
+                }
+                else if(!EmptySpace(file_num - 1 - i, attack_rank - 1))
+                {
+                    break;
+                }
+            }
+
+            attack_rank = rank + 1;
+            for(int i = 0; i < 8; ++i)
+            {
+                attack_file = file_location + 1 + i;
+                attack_rank -= 1;
+                //std::cout << "2Check Space: " << attack_file << " " << attack_rank << '\n';
+
+                if((piece->file == attack_file && piece->rank == attack_rank) ||
+                   (piece->file == attack_file && piece->rank == attack_rank))
+                {
+                    return true;
+                }
+                else if(!EmptySpace(file_num + 1 + i, attack_rank - 1))
+                {
+                    break;
+                }
+            }
+
+            attack_rank = rank + 1;
+            for(int i = 0; i < 8; ++i)
+            {
+                attack_rank -= 1;
+                attack_file = file_location - 1 - i;
+                //std::cout << "1Check Space: " << attack_file << " " << attack_rank << '\n';
+
+                if((piece->file == attack_file && piece->rank == attack_rank) ||
+                   (piece->file == attack_file && piece->rank == attack_rank))
+                {
+                    return true;
+                }
+                else if(!EmptySpace(file_num - 1 - i, attack_rank - 1))
+                {
+                    break;
+                }
+            }
+        }
+
+        attack_rank = rank + 1;
         if(piece->type == "Knight")
         {
-            attack_file = file_num - 1;
-            attack_rank = piece->rank + player->rank_direction + player->rank_direction;
+            attack_file = file_location - 1;
+            attack_rank = attack_rank + player->rank_direction + player->rank_direction;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
 
-            attack_file = file_num + 1;
+            attack_file = file_location + 1;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
 
-            attack_rank = piece->rank - player->rank_direction - player->rank_direction;
+            attack_rank = rank + 1;
+            attack_rank = attack_rank - player->rank_direction - player->rank_direction;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
 
-            attack_file = file_num - 1;
+            attack_file = file_location - 1;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
 
-            attack_file = file_num - 2;
-            attack_rank = piece->rank + player->rank_direction;
+            attack_rank = rank + 1;
+            attack_file = file_location - 2;
+            attack_rank = attack_rank + player->rank_direction;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
             
-            attack_file = file_num + 2;
+            attack_file = file_location + 2;
+            if((piece->file == attack_file && piece->rank == attack_rank) ||
+               (piece->file == attack_file && piece->rank == attack_rank))
+            {
+                return true;
+            }
+
+            attack_rank = rank + 1;
+            attack_rank = attack_rank - player->rank_direction;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
                 return true;
             }
             
-            attack_rank = piece->rank - player->rank_direction;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                return true;
-            }
-            
-            attack_file = file_num - 2;
+            attack_file = file_location - 2;
             if((piece->file == attack_file && piece->rank == attack_rank) ||
                (piece->file == attack_file && piece->rank == attack_rank))
             {
@@ -815,7 +922,7 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
             }
         }
     }
-
+    //std::cout << "Nothing here\n";
     return false;
 }
 

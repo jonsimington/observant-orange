@@ -106,6 +106,7 @@ public:
     std::vector<Piece> temp_pieces;
     char FEN_board[8][8];
     bool player_lower_case;
+    int promo_num;
 
     // ####################
     // Don't edit these!
