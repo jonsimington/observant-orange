@@ -97,6 +97,7 @@ public:
     void MoveBishopOrQueen(int rank, int file_num);
     void MoveKnight(int rank, int file_num);
     bool WouldSpaceCheck(int file_num, int rank);
+    void CheckForCastling(int rank, int file_num);
     void PromotePawn(int file_num, int old_rank, int new_rank);
     void SetUpMove(int old_file, int new_file, int old_rank,
                     int new_rank, std::string promo);
@@ -109,7 +110,6 @@ public:
     int en_passant_file;
     char castling[4];
     bool player_lower_case;
-    int promo_num;
 
     // ####################
     // Don't edit these!

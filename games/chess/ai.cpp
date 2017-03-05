@@ -30,7 +30,6 @@ void AI::start()
     // This is a good place to initialize any variables
     srand(time(NULL));
     player_lower_case = false;
-    promo_num = 0;
     GenerateFENArray();
     Piece temp = player->pieces[0];
     int file_num = temp->file[0] - 'a';
@@ -57,7 +56,6 @@ void AI::game_updated()
 /// <param name="reason">An explanation for why you either won or lost</param>
 void AI::ended(bool won, const std::string& reason)
 {
-    std::cout << "Number of promotions: " << promo_num << '\n';
     // You can do any cleanup of your AI here.  The program ends when this function returns.
 }
 
@@ -97,11 +95,11 @@ bool AI::run_turn()
     {
         for(int j = 0; j < 8; ++j)
         {
-            if((FEN_board[i][j] == 'p' && player_lower_case) ||
+            /*if((FEN_board[i][j] == 'p' && player_lower_case) ||
                (FEN_board[i][j] == 'P' && !player_lower_case))
             {
                 MovePawn(i, j);
-            }
+            }*/
 
             if((FEN_board[i][j] == 'k' && player_lower_case) ||
                (FEN_board[i][j] == 'K' && !player_lower_case))
@@ -109,7 +107,7 @@ bool AI::run_turn()
                 MoveKing(i, j);
             }
 
-            if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
+            /*if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
                ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
             {
                 MoveRookOrQueen(i, j);
@@ -125,7 +123,7 @@ bool AI::run_turn()
                (FEN_board[i][j] == 'N' && !player_lower_case))
             {
                 MoveKnight(i, j);
-            }
+            }*/
         }
     }
 
@@ -165,10 +163,6 @@ bool AI::run_turn()
                    // std::cout << "Moving " << piece_to_move-> type << "\n";
                     if(!WouldSpaceCheck(j, i))
                     {
-                        if(possible_moves[move_number].promotion != "")
-                        {
-                            ++promo_num;
-                        }
                         piece_to_move->move(possible_moves[move_number].new_file,
                                         possible_moves[move_number].new_rank,
                                         possible_moves[move_number].promotion);
@@ -308,7 +302,7 @@ void AI::MoveKing(int rank, int file_num)
     int move_location = rank;
     int final_file;
 
-    final_file = file_num + 1;
+    /*final_file = file_num + 1;
     if((EmptySpace(final_file, move_location) ||
        OpponentLocated(final_file, move_location)) &&
        !WouldSpaceCheck(final_file, move_location))
@@ -368,7 +362,9 @@ void AI::MoveKing(int rank, int file_num)
         !WouldSpaceCheck(file_num, move_location))
     {
         SetUpMove(file_num, file_num, rank, move_location, "");
-    }
+    }*/
+
+    CheckForCastling(rank, file_num);
 }
 
 void AI::MoveRookOrQueen(int rank, int file_num)
@@ -665,7 +661,6 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
         int file_location = file_num + 97;
         attack_file = file_location;
         Piece piece = player->opponent->pieces[j];
-        //std::cout << "Type: " << piece->type << '\n';
 
         if(piece->type == "Pawn" || piece->type == "King" ||
            piece->type == "Bishop" || piece->type == "Queen")
@@ -919,6 +914,57 @@ bool AI::WouldSpaceCheck(int file_num, int rank)
     return false;
 }
 
+void AI::CheckForCastling(int rank, int file_num)
+{
+    for(int j = 0; j < player->pieces.size(); ++j)
+    {
+        Piece piece = player->pieces[j];
+
+        if(piece->type == "Rook" && piece->rank - 1 == rank)
+        {
+            int rook_file = piece->file[0] - 'a';
+
+            if(((castling[0] == 'K' && !player_lower_case) ||
+               (castling[2] == 'k' && player_lower_case)) &&
+               rook_file > file_num)
+            {
+                bool kingside = true;
+                int diff = abs(rook_file - file_num) - 1;
+                for(int i = 1; i < diff; ++i)
+                {
+                    if(!EmptySpace(file_num + i, rank))
+                    {
+                        kingside = false;
+                    }
+                }
+                if(kingside == true)
+                {
+                    SetUpMove(file_num, file_num + 2, rank, rank, "");
+                }
+            }
+
+            if(((castling[1] == 'Q' && !player_lower_case) ||
+               (castling[3] == 'q' && player_lower_case)) &&
+               rook_file < file_num)
+            {
+                bool queenside = true;
+                int diff = abs(rook_file - file_num) - 1;
+                for(int i = 1; i < diff; ++i)
+                {
+                    if(!EmptySpace(file_num - i, rank))
+                    {
+                        queenside = false;
+                    }
+                }
+                if(queenside == true)
+                {
+                    SetUpMove(file_num, file_num - 2, rank, rank, "");
+                }
+            }
+        }
+    }
+}
+
 bool AI::EmptySpace(int file_num, int rank)
 {
     if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
@@ -992,17 +1038,17 @@ void AI::GenerateFENArray()
         {
             castling[0] = 'K';
         }
-        else if(fen[0] == 'Q')
+        if(fen[1] == 'Q')
         {
             castling[1] = 'Q';
         }
-        else if(fen[0] == 'k')
+        if(fen[2] == 'k')
         {
-            castling[1] = 'k';
+            castling[2] = 'k';
         }
-        else if(fen[0] == 'q')
+        if(fen[3] == 'q')
         {
-            castling[1] = 'q';
+            castling[3] = 'q';
         }
 
         if(spaces_found == 3)
