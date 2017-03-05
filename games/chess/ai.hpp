@@ -105,6 +105,9 @@ public:
     std::vector<node> possible_moves;
     std::vector<Piece> temp_pieces;
     char FEN_board[8][8];
+    int en_passant_rank;
+    int en_passant_file;
+    char castling[4];
     bool player_lower_case;
     int promo_num;
 

@@ -35,6 +35,7 @@ void AI::start()
     Piece temp = player->pieces[0];
     int file_num = temp->file[0] - 'a';
     char my_piece = FEN_board[temp->rank - 1][file_num];
+
     if(islower(my_piece))
     {
         player_lower_case = true;
@@ -68,6 +69,7 @@ bool AI::run_turn()
 {
     // Here is where you'll want to code your AI.
     GenerateFENArray();
+
     // We've provided sample code that:
     //    1) prints the board to the console
     //    2) prints the opponent's last move to the console
@@ -257,23 +259,12 @@ void AI::print_current_board()
 void AI::MovePawn(int rank, int file_num)
 {
     int move_location = 0;
-    Piece pawn;
     std::string pawn_file;
     pawn_file = file_num + 97;
 
-    for(int i = 0; i < player->pieces.size(); ++i)
-    {
-        if(player->pieces[i]->rank == rank + 1 &&
-           player->pieces[i]->file == pawn_file &&
-           player->pieces[i]->type == "Pawn")
-        {
-            pawn = player->pieces[i];
-            break;
-        }
-    }
-
     move_location = rank + player->rank_direction;
-    if(!pawn->has_moved)
+    if((rank + 1 == 7 && player_lower_case) ||
+       (rank + 1 == 2 && !player_lower_case))
     {
         if(EmptySpace(file_num, move_location) &&
            EmptySpace(file_num, move_location + player->rank_direction))
@@ -298,13 +289,15 @@ void AI::MovePawn(int rank, int file_num)
     }
 
     int file_location = file_num + 1;
-    if(OpponentLocated(file_location, move_location))
+    if(OpponentLocated(file_location, move_location) ||
+       (en_passant_file == file_location && en_passant_rank - 1 == move_location))
     {
         SetUpMove(file_num, file_location, rank, move_location, "");
     }
 
     file_location = file_num - 1;
-    if(OpponentLocated(file_location, move_location))
+    if(OpponentLocated(file_location, move_location) ||
+       (en_passant_file == file_location && en_passant_rank - 1 == move_location))
     {
         SetUpMove(file_num, file_location, rank, move_location, "");
     }
@@ -944,7 +937,6 @@ bool AI::EmptySpace(int file_num, int rank)
 void AI::GenerateFENArray()
 {
     std::string fen = game->fen;
-
     for(int rank = 7; rank >= 0; --rank)
     {
         for(int i = 0; i < 8; ++i)
@@ -983,6 +975,45 @@ void AI::GenerateFENArray()
             }
         }
         fen = fen.substr(slash+1);
+    }
+
+    for(int i = 0; i < 4; ++i)
+    {
+        castling[i] = '-';
+    }
+
+    int spaces_found = 0;
+    while(spaces_found < 4)
+    {
+        int space = fen.find(' ');
+        ++spaces_found;
+
+        if(fen[0] == 'K')
+        {
+            castling[0] = 'K';
+        }
+        else if(fen[0] == 'Q')
+        {
+            castling[1] = 'Q';
+        }
+        else if(fen[0] == 'k')
+        {
+            castling[1] = 'k';
+        }
+        else if(fen[0] == 'q')
+        {
+            castling[1] = 'q';
+        }
+
+        if(spaces_found == 3)
+        {
+            if(fen[0] != '-')
+            {
+                en_passant_file = fen[0] - 'a';
+                en_passant_rank = fen[1] - '0';
+            }
+        }
+        fen = fen.substr(space+1);
     }
 }
 
