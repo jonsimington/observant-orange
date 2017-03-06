@@ -88,26 +88,41 @@ public:
     /// </remarks>
     void print_current_board();
 
-    // You can add additional methods here.
+    //Comments for below functions and variables can be
+    //found in the accompanying C++ file
     void generate_FEN_array();
+
+    //Move generation functions
     void move_pawn(int rank, int file_num);
     void move_king(int rank, int file_num);
     void move_rook_or_queen(int rank, int file_num);
     void move_bishop_or_queen(int rank, int file_num);
     void move_knight(int rank, int file_num);
+
+    //Rule checking functions
     bool would_space_check(int file_num, int rank);
     void check_for_castling(int rank, int file_num);
     void promote_pawn(int file_num, int new_file, int old_rank, int new_rank);
+
+    //Set up move function and check space functions
     void set_up_move(int old_file, int new_file, int old_rank,
                     int new_rank, std::string promo);
     bool empty_space(int file_num, int rank);
     bool opponent_located(int file_num, int rank);
+
+    //Vector for holding all possible moves
     std::vector<node> possible_moves;
-    std::vector<Piece> temp_pieces;
+
+    //Double array holding the state of the board
     char FEN_board[8][8];
+
+    //Variables that determine if en passant and castling are possible
     int en_passant_rank;
     int en_passant_file;
     char castling[4];
+
+    //Whether or not the current player is denoted by lower
+    //case characters in the FEN string
     bool player_lower_case;
 
     // ####################

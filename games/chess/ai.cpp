@@ -27,10 +27,19 @@ std::string AI::get_name() const
 /// </summary>
 void AI::start()
 {
-    // This is a good place to initialize any variables
     srand(time(NULL));
+
+    //Initialize variables
     player_lower_case = false;
+    en_passant_file = -1;
+    en_passant_rank = -1;
+
+    //Call generate_FEN_array to genarate the double array
+    //that will hold the board status
     generate_FEN_array();
+
+    //Determine if the current player is upper or lower case
+    //in the FEN string by looking at a current piece
     Piece temp = player->pieces[0];
     int file_num = temp->file[0] - 'a';
     char my_piece = FEN_board[temp->rank - 1][file_num];
@@ -86,11 +95,8 @@ bool AI::run_turn()
     // 3) print how much time remaining this AI has to calculate moves
     std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
 
-    // 4) make a random (and probably invalid) move.
-    /*chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
-    std::string random_file(1, 'a' + rand() % 8);
-    int random_rank = (rand() % 8) + 1;
-    random_piece->move(random_file, random_rank);*/
+    // 4) Generate all the possible moves by looking at each piece and
+    //finding its specific moves
     for(int i = 0; i < 8; ++i)
     {
         for(int j = 0; j < 8; ++j)
@@ -127,9 +133,13 @@ bool AI::run_turn()
         }
     }
 
+    //Loop through the possible moves until no more moves exist
+    //or a move is made
     bool move_made = false;
     while(!possible_moves.empty() && !move_made)
     {
+        //Find the piece that is expected to move by comparing pieces
+        //to the possible move piece information
         Piece piece_to_move;
         int move_number = rand() % possible_moves.size();
         for(int i = 0; i < player->pieces.size(); ++i)
@@ -142,6 +152,8 @@ bool AI::run_turn()
             }
         }
 
+        //Reset the FEN_board to appear as if the move has been
+        //made in order to see check status
         for(int i = 0; i < 8; ++i)
         {
             for(int j = 0; j < 8; ++j)
@@ -150,6 +162,7 @@ bool AI::run_turn()
             }
         }
 
+        //Loop through until we find the king so we can see if its in check
         for(int i = 0; i < 8 && !move_made; ++i)
         {
             for(int j = 0; j < 8 && !move_made; ++j)
@@ -159,10 +172,9 @@ bool AI::run_turn()
                    (possible_moves[move_number].current_FEN[i][j] == 'K'
                     && !player_lower_case)))
                 {
-                    std::cout << "Moving " << piece_to_move-> type << "\n";
-                    std::cout << "Move to: " << possible_moves[move_number].new_file << " " << possible_moves[move_number].new_rank << '\n';
-                    int ttt = possible_moves[move_number].new_file[0] - 'a';
-                    std::cout << "-------- " << possible_moves[move_number].current_FEN[possible_moves[move_number].new_rank - 1][ttt] << " ----------\n";
+                    //Found the king, if it is safe with this move,
+                    //make the move.  Otherwise, loop back through
+                    //and try a different move.
                     if(!would_space_check(j, i))
                     {
                         piece_to_move->move(possible_moves[move_number].new_file,
@@ -174,9 +186,11 @@ bool AI::run_turn()
             }
         }
 
+        //Remove the last move from the list
         possible_moves.erase(possible_moves.begin() + move_number);
     }
 
+    //Clear moves so we start fresh next turn
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
@@ -247,15 +261,21 @@ void AI::print_current_board()
     }
 }
 
-// You can add additional methods here for your AI to call
-
+//Finds the possible moves of a given pawn on the current
+//game board by looking at it's rank and file_num and the
+//open spaces around it.
 void AI::move_pawn(int rank, int file_num)
 {
     int move_location = 0;
     std::string pawn_file;
+    //Find the letter of the pawn file by converting to ascii
     pawn_file = file_num + 97;
 
+    //Move the pawn in the player's direction by 1
     move_location = rank + player->rank_direction;
+
+    //If the pawn is in the original starting spot, it may move
+    //two spaces if both are empty
     if((rank + 1 == 7 && player_lower_case) ||
        (rank + 1 == 2 && !player_lower_case))
     {
@@ -265,22 +285,24 @@ void AI::move_pawn(int rank, int file_num)
             set_up_move(file_num, file_num, rank, move_location + player->rank_direction, "");
         }
     }
-    else
+
+    //Move the pawn forward one space if it is empty
+    if(empty_space(file_num, move_location))
     {
-        if(empty_space(file_num, move_location))
+        if(move_location + player->rank_direction > 7 ||
+           move_location + player->rank_direction < 0)
         {
-            if(move_location + player->rank_direction > 7 ||
-               move_location + player->rank_direction < 0)
-            {
-                promote_pawn(file_num, file_num, rank, move_location);
-            }
-            else
-            {
-                set_up_move(file_num, file_num, rank, move_location, "");
-            }
+            //If the pawn reached the edge of the board, promote it
+            promote_pawn(file_num, file_num, rank, move_location);
+        }
+        else
+        {
+            set_up_move(file_num, file_num, rank, move_location, "");
         }
     }
 
+    //If the pawn can move to an en passant square OR there is an
+    //opponent diagonal from it, it can move to the side one and forward one
     int file_location = file_num + 1;
     if(opponent_located(file_location, move_location) ||
        (en_passant_file == file_location && en_passant_rank - 1 == move_location))
@@ -296,6 +318,8 @@ void AI::move_pawn(int rank, int file_num)
         }
     }
 
+    //If the pawn can move to an en passant square OR there is an
+    //opponent diagonal from it, it can move to the side one and forward one
     file_location = file_num - 1;
     if(opponent_located(file_location, move_location) ||
        (en_passant_file == file_location && en_passant_rank - 1 == move_location))
@@ -312,11 +336,17 @@ void AI::move_pawn(int rank, int file_num)
     }
 }
 
+//Finds the possible moves of the king on the current
+//game board by looking at it's rank and file_num and the
+//open spaces around it that would not result in a check.
 void AI::move_king(int rank, int file_num)
 {
     int move_location = rank;
     int final_file;
 
+    //The king can move to the right one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     final_file = file_num + 1;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -325,6 +355,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move to the left one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     final_file = file_num - 1;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -333,6 +366,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move diagonal one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     move_location = rank + player->rank_direction;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -341,6 +377,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move diagonal one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     final_file = file_num + 1;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -349,6 +388,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move forward one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     if((empty_space(file_num, move_location) ||
        opponent_located(file_num, move_location)) &&
         !would_space_check(file_num, move_location))
@@ -356,6 +398,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, file_num, rank, move_location, "");
     }
 
+    //The king can move diagonal one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     move_location = rank - player->rank_direction;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -364,6 +409,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move diagonal one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     final_file = file_num - 1;
     if((empty_space(final_file, move_location) ||
        opponent_located(final_file, move_location)) &&
@@ -372,6 +420,9 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, final_file, rank, move_location, "");
     }
 
+    //The king can move backwards one if there is an
+    //opponent there or the space is empty, and this would
+    //not put the king in check
     if((empty_space(file_num, move_location) ||
        opponent_located(file_num, move_location)) &&
         !would_space_check(file_num, move_location))
@@ -379,14 +430,21 @@ void AI::move_king(int rank, int file_num)
         set_up_move(file_num, file_num, rank, move_location, "");
     }
 
+    //Check to see if kingside or queenside castling is allowed
     check_for_castling(rank, file_num);
 }
 
+//Finds the possible moves of a given rook or the queen on the current
+//game board by looking at it's rank and file_num and the
+//open spaces around it.
 void AI::move_rook_or_queen(int rank, int file_num)
 {
     int move_location = rank;
     std::string final_file;
 
+    //Add every space to the right of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_num + 1 + i;
@@ -405,6 +463,9 @@ void AI::move_rook_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space to the left of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_num - 1 - i;
@@ -423,6 +484,9 @@ void AI::move_rook_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space in front of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     for(int i = 0; i < 8; ++i)
     {
         move_location += player->rank_direction;
@@ -441,6 +505,9 @@ void AI::move_rook_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space behind the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     move_location = rank;
     for(int i = 0; i < 8; ++i)
     {
@@ -461,12 +528,18 @@ void AI::move_rook_or_queen(int rank, int file_num)
     }
 }
 
+//Finds the possible moves of a given bishop or the queen on the current
+//game board by looking at it's rank and file_num and the
+//open spaces around it.
 void AI::move_bishop_or_queen(int rank, int file_num)
 {
     int move_location = rank;
     int file_location = file_num;
     std::string final_file;
 
+    //Add every space diagonally behind to the right of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     for(int i = 0; i < 8; ++i)
     {
         final_file = file_location + 1 + i;
@@ -486,6 +559,9 @@ void AI::move_bishop_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space diagonally in front of to the right of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     move_location = rank;
     file_location = file_num;
     for(int i = 0; i < 8; ++i)
@@ -507,6 +583,9 @@ void AI::move_bishop_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space diagonally behind to the left of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     move_location = rank;
     file_location = file_num;
     for(int i = 0; i < 8; ++i)
@@ -528,6 +607,9 @@ void AI::move_bishop_or_queen(int rank, int file_num)
         }
     }
 
+    //Add every space diagonally in front of to the left of the piece to
+    //the possible moves space if it can get there without
+    //hitting another piece
     move_location = rank;
     file_location = file_num;
     for(int i = 0; i < 8; ++i)
@@ -550,12 +632,16 @@ void AI::move_bishop_or_queen(int rank, int file_num)
     }
 }
 
+//Finds the possible moves of a given knight on the current
+//game board by looking at it's rank and file_num and the
+//open spaces around it.
 void AI::move_knight(int rank, int file_num)
 {
     int move_location = rank;
     int file_location = file_num;
     std::string final_file;
 
+    //L shaped move to the right 2 and behind 1
     final_file = file_location + 2;
     move_location -= player->rank_direction;
     if(empty_space(file_location + 2, move_location) ||
@@ -564,6 +650,7 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location + 2, rank, move_location, "");
     }
 
+    //L shaped move to the right 2 and in front 1
     move_location = rank + player->rank_direction;
     if(empty_space(file_location + 2, move_location) ||
        opponent_located(file_location + 2, move_location))
@@ -571,6 +658,7 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location + 2, rank, move_location, "");
     }
 
+    //L shaped move to the right 1 and in front 2
     final_file = file_location + 1;
     move_location = rank + player->rank_direction + player->rank_direction;
     if(empty_space(file_location + 1, move_location) ||
@@ -579,6 +667,7 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location + 1, rank, move_location, "");
     }
 
+    //L shaped move to the right 1 and behind 2
     move_location = rank - player->rank_direction - player->rank_direction;
     if(empty_space(file_location + 1, move_location) ||
        opponent_located(file_location + 1, move_location))
@@ -586,6 +675,7 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location + 1, rank, move_location, "");
     }
 
+    //L shaped move to the left 2 and behind 1
     final_file = file_location - 2;
     move_location = rank - player->rank_direction;
     if(empty_space(file_location - 2, move_location) ||
@@ -594,13 +684,15 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location - 2, rank, move_location, "");
     }
 
+    //L shaped move to the left 2 and in front 1
     move_location = rank + player->rank_direction;
     if(empty_space(file_location - 2, move_location) ||
        opponent_located(file_location - 2, move_location))
     {
         set_up_move(file_num, file_location - 2, rank, move_location, "");
     }
-    
+
+    //L shaped move to the left 1 and in front 2
     final_file = file_location - 1;
     move_location = rank + player->rank_direction + player->rank_direction;
     if(empty_space(file_location - 1, move_location) ||
@@ -609,6 +701,7 @@ void AI::move_knight(int rank, int file_num)
         set_up_move(file_num, file_location - 1, rank, move_location, "");
     }
 
+    //L shaped move to the left 1 and behind 2
     move_location = rank - player->rank_direction - player->rank_direction;
     if(empty_space(file_location - 1, move_location) ||
        opponent_located(file_location - 1, move_location))
@@ -617,6 +710,8 @@ void AI::move_knight(int rank, int file_num)
     }
 }
 
+//If the pawn moved to the edge of the board, it should be promoted to
+//a queen, rook, bishop, or knight at random, set up the corresponding move
 void AI::promote_pawn(int file_num, int new_file, int old_rank, int new_rank)
 {
     int random_move = rand() % 4;
@@ -639,10 +734,15 @@ void AI::promote_pawn(int file_num, int new_file, int old_rank, int new_rank)
     }
 }
 
+//This function sets up a move given a pieces old location and new location
+//by storing both those and the possible pawn promotion in a small structure
+//to be referenced later when deciding which move to make
 void AI::set_up_move(int old_file, int new_file, int old_rank,
                    int new_rank, std::string promo)
 {
     node move_to_make;
+
+    //Set the move's FEN board to the original one
     for(int i = 0; i <8; ++i)
     {
         for(int j =0; j < 8; ++j)
@@ -651,328 +751,339 @@ void AI::set_up_move(int old_file, int new_file, int old_rank,
         }
     }
 
+    //Make the move on the FEN board (in the array)
     move_to_make.current_FEN[new_rank][new_file] = FEN_board[old_rank][old_file];
     move_to_make.current_FEN[old_rank][old_file] = '.';
 
+    //Set up the old and new locations in the structure for later look
+    //up and moving of the piece
     move_to_make.old_file = old_file + 'a';
     move_to_make.new_file = new_file + 'a';
     move_to_make.old_rank = old_rank + 1;
     move_to_make.new_rank = new_rank + 1;
     move_to_make.promotion = promo;
+
+    //Add the move to the list of possible moves
     possible_moves.push_back(move_to_make);
 }
 
+//Determine if the king is in check while in the current given location
 bool AI::would_space_check(int file_num, int rank)
 {
+    //If given a bad location, return true since this is not
+    //an allowed possible move
     if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
-        return false;
+        return true;
     }
 
-    for(int j = 0; j < 8; ++j)
+    //Loop through all the spaces on the board and find opponent pieces
+    //that may have the king in check
+    for(int k = 0; k < 8; ++k)
     {
-        int attack_rank = rank + 1;
-        std::string attack_file;
-        int file_location = file_num + 97;
-        attack_file = file_location;
-        Piece piece = player->opponent->pieces[j];
-
-        if(piece->type == "Pawn" || piece->type == "King" ||
-           piece->type == "Bishop" || piece->type == "Queen")
+        for(int j = 0; j < 8; ++j)
         {
-            attack_file = file_location + 1;
-            if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
-               (piece->file == attack_file && piece->rank == attack_rank - 1))
-            {
-                std::cout << "1" << '\n';
-                return true;
-            }
-            attack_file = file_location - 1;
-            if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
-               (piece->file == attack_file && piece->rank == attack_rank - 1))
-            {
-                std::cout << "2" << '\n';
+            int attack_rank = rank;
+            int attack_file;
 
-                return true;
-            }
-        }
-
-        attack_file = file_location;
-        if(piece->type == "Rook" || piece->type == "King" ||
-           piece->type == "Queen")
-        {
-            if((piece->file == attack_file && piece->rank == attack_rank + 1) ||
-               (piece->file == attack_file && piece->rank == attack_rank - 1))
+            //If the opponent piece (opposite case of the current player) is a pawn, bishop,
+            //king, or queen and it is in either of the two diagonal spaces in front of the king,
+            //the king is in check OR if it is a bishop, king, or queen and in on of the diagonal
+            //spaces behind the king, the king is in check
+            if(((FEN_board[k][j] == 'P' || FEN_board[k][j] == 'K' ||
+               FEN_board[k][j] == 'B' || FEN_board[k][j] == 'Q') && player_lower_case) ||
+               ((FEN_board[k][j] == 'p' || FEN_board[k][j] == 'k' ||
+                 FEN_board[k][j] == 'b' || FEN_board[k][j] == 'q') && !player_lower_case))
             {
-                std::cout << piece->type << '\n';
-                std::cout << "3" << '\n';
-
-                return true;
-            }
-            attack_file = file_location - 1;
-            if((piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "4" << '\n';
-
-                return true;
-            }
-            attack_file = file_location + 1;
-            if((piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "5" << '\n';
-
-                return true;
-            }
-        }
-
-        if(piece->type == "Rook" || piece->type == "Queen")
-        {
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_file = file_location + 1 + i;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
+                attack_file = file_num + 1;
+                if((j == attack_file && k == attack_rank + player->rank_direction &&
+                    (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')) ||
+                   (j == attack_file && k == attack_rank - player->rank_direction))
                 {
-                    std::cout << "6" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num + 1 + i, rank))
+                attack_file = file_num - 1;
+                if((j == attack_file && k == attack_rank + player->rank_direction &&
+                    (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')) ||
+                   (j == attack_file && k == attack_rank - player->rank_direction))
                 {
-                    break;
-                }
-            }
-
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_file = file_location - 1 - i;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
-                {
-                    std::cout << "7" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num - 1 - i, rank))
-                {
-
-                    break;
-                }
             }
 
-            attack_rank = rank + 1;
-            attack_file = file_location;
-            for(int i = 0; i < 8; ++i)
+            //If the opponent piece is a rook, bishop, king, or queen
+            //and it is in any of the squares directly in front of, behind,
+            //to the right or left of the king, the king is in check
+            attack_file = file_num;
+            if(((FEN_board[k][j] == 'R' || FEN_board[k][j] == 'K' ||
+               FEN_board[k][j] == 'Q') && player_lower_case) ||
+               ((FEN_board[k][j] == 'r' || FEN_board[k][j] == 'k' ||
+                 FEN_board[k][j] == 'q') && !player_lower_case))
             {
-                attack_rank += 1;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
+                if((j == attack_file && k == attack_rank + 1) ||
+                   (j == attack_file && k == attack_rank - 1))
                 {
-                    std::cout << "8" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num, attack_rank - 1))
+                attack_file = file_num - 1;
+                if((j == attack_file && k == attack_rank))
                 {
-                    break;
-                }
-            }
-
-            attack_rank = rank + 1;
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_rank -= 1;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
-                {
-                    std::cout << "9" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num, attack_rank - 1))
+                attack_file = file_num + 1;
+                if((j == attack_file && k == attack_rank))
                 {
-                    break;
-                }
-            }
-        }
-
-        attack_rank = rank + 1;
-        attack_file = file_location;
-        if(piece->type == "Bishop" || piece->type == "Queen")
-        {
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_file = file_location + 1 + i;
-                attack_rank += 1;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
-                {
-                    std::cout << "10" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num + 1 + i, attack_rank - 1))
+            }
+
+            //If the opponent piece is a rook or queen
+            //and it is in any of the squares in any straight direction
+            //from the king without any other pieces between them, the king is in check
+            if(((FEN_board[k][j] == 'R' || FEN_board[k][j] == 'Q') && player_lower_case) ||
+               ((FEN_board[k][j] == 'r' || FEN_board[k][j] == 'q') && !player_lower_case))
+            {
+                //Check to the right of the king
+                for(int i = 0; i < 8; ++i)
                 {
-                    break;
+                    attack_file = file_num + 1 + i;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, rank))
+                    {
+                        break;
+                    }
+                }
+
+                //Check to the left of the king
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_file = file_num - 1 - i;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, rank))
+                    {
+
+                        break;
+                    }
+                }
+
+                //Check in front of the king
+                attack_rank = rank;
+                attack_file = file_num;
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_rank += 1;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(file_num, attack_rank))
+                    {
+                        break;
+                    }
+                }
+
+                //Check behind the king
+                attack_rank = rank;
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_rank -= 1;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(file_num, attack_rank))
+                    {
+                        break;
+                    }
                 }
             }
 
-            attack_rank = rank + 1;
-            for(int i = 0; i < 8; ++i)
+            //If the opponent piece is a bishop or queen
+            //and it is in any of the squares in any diagonal direction
+            //from the king without any other pieces between them, the king is in check
+            attack_rank = rank;
+            attack_file = file_num;
+            if(((FEN_board[k][j] == 'B' || FEN_board[k][j] == 'Q') && player_lower_case) ||
+               ((FEN_board[k][j] == 'b' || FEN_board[k][j] == 'q') && !player_lower_case))
             {
-                attack_file = file_location - 1 - i;
-                attack_rank += 1;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
+                //Check to the right and up
+                for(int i = 0; i < 8; ++i)
                 {
-                    std::cout << "11" << '\n';
+                    attack_file = file_num + 1 + i;
+                    attack_rank += 1;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, attack_rank))
+                    {
+                        break;
+                    }
+                }
 
+                //Check to the left and up
+                attack_rank = rank;
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_file = file_num - 1 - i;
+                    attack_rank += 1;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, attack_rank))
+                    {
+                        break;
+                    }
+                }
+
+                //Check to the right and down
+                attack_rank = rank;
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_file = file_num + 1 + i;
+                    attack_rank -= 1;
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, attack_rank))
+                    {
+                        break;
+                    }
+                }
+
+                //Check to the left and down
+                attack_rank = rank;
+                for(int i = 0; i < 8; ++i)
+                {
+                    attack_rank -= 1;
+                    attack_file = file_num - 1 - i;
+
+                    if((j == attack_file && k == attack_rank) ||
+                       (j == attack_file && k == attack_rank))
+                    {
+                        return true;
+                    }
+                    else if(!empty_space(attack_file, attack_rank))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            //If the king can be attacked by any opponent knight (from an L shape) then
+            //the king is in check
+            if((FEN_board[k][j] == 'N' && player_lower_case) ||
+               (FEN_board[k][j] == 'n' && !player_lower_case))
+            {
+                //L shape to the left and up 2
+                attack_file = file_num - 1;
+                attack_rank = rank + player->rank_direction + player->rank_direction;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
+                {
                     return true;
                 }
-                else if(!empty_space(file_num - 1 - i, attack_rank - 1))
-                {
-                    break;
-                }
-            }
 
-            attack_rank = rank + 1;
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_file = file_location + 1 + i;
-                attack_rank -= 1;
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
+                //L shape to the right and up 2
+                attack_file = file_num + 1;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
                 {
-                    std::cout << "12" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num + 1 + i, attack_rank - 1))
+
+                //L shape to the right and down 2
+                attack_rank = rank - player->rank_direction - player->rank_direction;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
                 {
-                    break;
-                }
-            }
-
-            attack_rank = rank + 1;
-            for(int i = 0; i < 8; ++i)
-            {
-                attack_rank -= 1;
-                attack_file = file_location - 1 - i;
-
-                if((piece->file == attack_file && piece->rank == attack_rank) ||
-                   (piece->file == attack_file && piece->rank == attack_rank))
-                {
-                    std::cout << "13" << '\n';
-
                     return true;
                 }
-                else if(!empty_space(file_num - 1 - i, attack_rank - 1))
+
+                //L shape to the left and down 2
+                attack_file = file_num - 1;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
                 {
-                    break;
+                    return true;
                 }
-            }
-        }
 
-        attack_rank = rank + 1;
-        if(piece->type == "Knight")
-        {
-            attack_file = file_location - 1;
-            attack_rank = attack_rank + player->rank_direction + player->rank_direction;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "14" << '\n';
+                //L shape to the left two and up
+                attack_file = file_num - 2;
+                attack_rank = rank + player->rank_direction;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
+                {
+                    return true;
+                }
+                
+                attack_file = file_num + 2;
+                //L shape to the right two and up
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
+                {
+                    return true;
+                }
 
-                return true;
-            }
+                //L shape to the right 2 and down
+                attack_rank = rank - player->rank_direction;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
+                {
+                    return true;
+                }
 
-            attack_file = file_location + 1;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "15" << '\n';
-
-                return true;
-            }
-
-            attack_rank = rank + 1;
-            attack_rank = attack_rank - player->rank_direction - player->rank_direction;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "16" << '\n';
-
-                return true;
-            }
-
-            attack_file = file_location - 1;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "17" << '\n';
-
-                return true;
-            }
-
-            attack_rank = rank + 1;
-            attack_file = file_location - 2;
-            attack_rank = attack_rank + player->rank_direction;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "18" << '\n';
-
-                return true;
-            }
-            
-            attack_file = file_location + 2;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "19" << '\n';
-
-                return true;
-            }
-
-            attack_rank = rank + 1;
-            attack_rank = attack_rank - player->rank_direction;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "20" << '\n';
-
-                return true;
-            }
-            
-            attack_file = file_location - 2;
-            if((piece->file == attack_file && piece->rank == attack_rank) ||
-               (piece->file == attack_file && piece->rank == attack_rank))
-            {
-                std::cout << "21" << '\n';
-
-                return true;
+                //L shape to the left 2 and down
+                attack_file = file_num - 2;
+                if((j == attack_file && k == attack_rank) ||
+                   (j == attack_file && k == attack_rank))
+                {
+                    return true;
+                }
             }
         }
     }
     return false;
 }
 
+//Check if a kingside or queenside castling move is possible
 void AI::check_for_castling(int rank, int file_num)
 {
     for(int j = 0; j < player->pieces.size(); ++j)
     {
         Piece piece = player->pieces[j];
 
+        //If the piece we are looking at is a rook and it is at the
+        //same location as the king
         if(piece->type == "Rook" && piece->rank - 1 == rank)
         {
             int rook_file = piece->file[0] - 'a';
 
+            //Check for kingside castling by determining if castling
+            //was in the FEN string at the beginning of the turn
             if(((castling[0] == 'K' && !player_lower_case) ||
                (castling[2] == 'k' && player_lower_case)) &&
                rook_file > file_num)
             {
                 bool kingside = true;
                 int diff = abs(rook_file - file_num) - 1;
+                //Determine if there are only empty spaces between
+                //the king and the castle
                 for(int i = 1; i < diff; ++i)
                 {
                     if(!empty_space(file_num + i, rank))
@@ -982,16 +1093,21 @@ void AI::check_for_castling(int rank, int file_num)
                 }
                 if(kingside == true)
                 {
+                    //Castling is possible, set up the move
                     set_up_move(file_num, file_num + 2, rank, rank, "");
                 }
             }
 
+            //Check for queenside castling by determining if castling
+            //was in the FEN string at the beginning of the turn
             if(((castling[1] == 'Q' && !player_lower_case) ||
                (castling[3] == 'q' && player_lower_case)) &&
                rook_file < file_num)
             {
                 bool queenside = true;
                 int diff = abs(rook_file - file_num) - 1;
+                //Determine if there are only empty spaces between
+                //the king and the castle
                 for(int i = 1; i < diff; ++i)
                 {
                     if(!empty_space(file_num - i, rank))
@@ -1001,6 +1117,7 @@ void AI::check_for_castling(int rank, int file_num)
                 }
                 if(queenside == true)
                 {
+                    //Castling is possible, set up the move
                     set_up_move(file_num, file_num - 2, rank, rank, "");
                 }
             }
@@ -1008,13 +1125,16 @@ void AI::check_for_castling(int rank, int file_num)
     }
 }
 
+//Is the given space of rank and file empty on the current board?
 bool AI::empty_space(int file_num, int rank)
 {
+    //The space is off the board - return false - move not possible
     if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
         return false;
     }
 
+    //If the array holds a '.' at the given location then the space is empty
     if(FEN_board[rank][file_num] == '.')
     {
         return true;
@@ -1023,8 +1143,11 @@ bool AI::empty_space(int file_num, int rank)
     return false;
 }
 
+//Generate the FEN double array displaying the board
+//by reading the current fen string
 void AI::generate_FEN_array()
 {
+    //Initialize the array to 0s
     std::string fen = game->fen;
     for(int rank = 7; rank >= 0; --rank)
     {
@@ -1036,6 +1159,8 @@ void AI::generate_FEN_array()
 
     int piece_num = 0;
 
+    //Read the values between each forward slash and the next (or a space)
+    //to determine the state of the board
     for(int rank = 7; rank >= 0; --rank)
     {
         int slash = fen.find('/');
@@ -1046,6 +1171,7 @@ void AI::generate_FEN_array()
         int column = 0;
         for(int i = 0; i < slash; ++i)
         {
+            //If the given character is a digit, set up the empty spaces
             if(isdigit(fen[i]))
             {
                 int empty_spaces = fen[i] - '0';
@@ -1056,6 +1182,7 @@ void AI::generate_FEN_array()
                 }
                 column += empty_spaces;
             }
+            //Otherwise, record the piece character
             else
             {
                 FEN_board[rank][column] = fen[i];
@@ -1063,23 +1190,28 @@ void AI::generate_FEN_array()
                 ++piece_num;
             }
         }
+        //Move to the next part
         fen = fen.substr(slash+1);
     }
 
+    //Initialize the castling array to be empty
     for(int i = 0; i < 4; ++i)
     {
         castling[i] = '-';
     }
 
+    //Initialize the en_passant variables to bad values
     en_passant_file = -1;
     en_passant_rank = -1;
 
+    //Read what remains of the fen string
     int spaces_found = 0;
     while(spaces_found < 4)
     {
         int space = fen.find(' ');
         ++spaces_found;
 
+        //Record the castlings that are possible
         if(fen[0] == 'K')
         {
             castling[0] = 'K';
@@ -1097,6 +1229,7 @@ void AI::generate_FEN_array()
             castling[3] = 'q';
         }
 
+        //Record the space that an en passant can occur in
         if(spaces_found == 3)
         {
             if(fen[0] != '-')
@@ -1105,22 +1238,30 @@ void AI::generate_FEN_array()
                 en_passant_rank = fen[1] - '0';
             }
         }
+        //Move to the next part
         fen = fen.substr(space+1);
     }
 }
 
+//Determine if an opponent is located at the given location
 bool AI::opponent_located(int file_num, int rank)
 {
+    //Return false if the values given are off the board
     if(file_num < 0 || file_num > 7 || rank > 7 || rank < 0)
     {
         return false;
     }
 
+    //If the location has a character that is lower case (not '.') and the current
+    //player is denoted by upper case characters, opponent is located there
     if(islower(FEN_board[rank][file_num]) && !player_lower_case &&
        FEN_board[rank][file_num] != '.')
     {
         return true;
     }
+
+    //If the location has a character that is upper case (not '.') and the current
+    //player is denoted by lower case characters, opponent is located there
     else if(!islower(FEN_board[rank][file_num]) && player_lower_case &&
             FEN_board[rank][file_num] != '.')
     {
