@@ -89,20 +89,19 @@ public:
     void print_current_board();
 
     // You can add additional methods here.
-    void GenerateFENArray();
-    void PrintFENArray();
-    void MovePawn(int rank, int file_num);
-    void MoveKing(int rank, int file_num);
-    void MoveRookOrQueen(int rank, int file_num);
-    void MoveBishopOrQueen(int rank, int file_num);
-    void MoveKnight(int rank, int file_num);
-    bool WouldSpaceCheck(int file_num, int rank);
-    void CheckForCastling(int rank, int file_num);
-    void PromotePawn(int file_num, int old_rank, int new_rank);
-    void SetUpMove(int old_file, int new_file, int old_rank,
+    void generate_FEN_array();
+    void move_pawn(int rank, int file_num);
+    void move_king(int rank, int file_num);
+    void move_rook_or_queen(int rank, int file_num);
+    void move_bishop_or_queen(int rank, int file_num);
+    void move_knight(int rank, int file_num);
+    bool would_space_check(int file_num, int rank);
+    void check_for_castling(int rank, int file_num);
+    void promote_pawn(int file_num, int new_file, int old_rank, int new_rank);
+    void set_up_move(int old_file, int new_file, int old_rank,
                     int new_rank, std::string promo);
-    bool EmptySpace(int file_num, int rank);
-    bool OpponentLocated(int file_num, int rank);
+    bool empty_space(int file_num, int rank);
+    bool opponent_located(int file_num, int rank);
     std::vector<node> possible_moves;
     std::vector<Piece> temp_pieces;
     char FEN_board[8][8];
