@@ -84,16 +84,16 @@ bool AI::run_turn()
     //    4) makes a random (and probably invalid) move.
 
     // 1) print the board to the console
-    print_current_board();
+    //print_current_board();
 
     // 2) print the opponent's last move to the console
-    if(game->moves.size() > 0)
+    /*if(game->moves.size() > 0)
     {
         std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
-    }
+    }*/
 
     // 3) print how much time remaining this AI has to calculate moves
-    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
+    //std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
 
     // 4) Generate all the possible moves by looking at each piece and
     //finding its specific moves
@@ -177,14 +177,32 @@ bool AI::run_turn()
                     //and try a different move.
                     if(!would_space_check(j, i))
                     {
+                        //Print out all possible moves for the piece being moved
+                        std::cout << "------------- Move #" << game->moves.size() << "-------------\n";
+                        std::cout << piece_to_move->type << " currently at " << piece_to_move->file;
+                        std::cout << piece_to_move->rank << '\n';
+                        for(int i = 0; i < possible_moves.size(); ++i)
+                        {
+                            if(piece_to_move->rank == possible_moves[i].old_rank &&
+                               piece_to_move->file == possible_moves[i].old_file)
+                            {
+                                std::cout << "Can be moved to " << possible_moves[i].new_file;
+                                std::cout << possible_moves[i].new_rank << '\n';
+                            }
+                        }
+
                         piece_to_move->move(possible_moves[move_number].new_file,
                                         possible_moves[move_number].new_rank,
                                         possible_moves[move_number].promotion);
+                        std::cout << "***** MOVED TO " << possible_moves[move_number].new_file;
+                        std::cout << possible_moves[move_number].new_rank << " *****\n";
                         move_made = true;
                     }
                 }
             }
         }
+
+
 
         //Remove the last move from the list
         possible_moves.erase(possible_moves.begin() + move_number);
