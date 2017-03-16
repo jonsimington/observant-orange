@@ -97,116 +97,39 @@ bool AI::run_turn()
 
     // 4) Generate all the possible moves by looking at each piece and
     //finding its specific moves
-    for(int i = 0; i < 8; ++i)
+    find_possible_moves();
+    starter_moves = possible_moves;
+
+    bool end_game_found = false;
+    int limit = 0;
+    while(!end_game_found)
     {
-        for(int j = 0; j < 8; ++j)
-        {
-            if((FEN_board[i][j] == 'p' && player_lower_case) ||
-               (FEN_board[i][j] == 'P' && !player_lower_case))
-            {
-                move_pawn(i, j);
-            }
+        limit += 20;
 
-            if((FEN_board[i][j] == 'k' && player_lower_case) ||
-               (FEN_board[i][j] == 'K' && !player_lower_case))
-            {
-                move_king(i, j);
-            }
+        //Clear the tracked boards for the next search
+        possible_moves.clear();
 
-            if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
-               ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
-            {
-                move_rook_or_queen(i, j);
-            }
-
-            if(((FEN_board[i][j] == 'b' || FEN_board[i][j] == 'q') && player_lower_case) ||
-               ((FEN_board[i][j] == 'B' || FEN_board[i][j] == 'Q') && !player_lower_case))
-            {
-                move_bishop_or_queen(i, j);
-            }
-
-            if((FEN_board[i][j] == 'n' && player_lower_case) ||
-               (FEN_board[i][j] == 'N' && !player_lower_case))
-            {
-                move_knight(i, j);
-            }
-        }
+        //DFGS starting at the top board using the
+        //calculated depth limit
+        if(explore_moves(limit))
+            end_game_found = true;
     }
 
-    //Loop through the possible moves until no more moves exist
-    //or a move is made
-    bool move_made = false;
-    while(!possible_moves.empty() && !move_made)
+    Piece piece_to_move;
+
+    //Find the piece to move
+    for(int i = 0; i < player->pieces.size(); ++i)
     {
-        //Find the piece that is expected to move by comparing pieces
-        //to the possible move piece information
-        Piece piece_to_move;
-        int move_number = rand() % possible_moves.size();
-        for(int i = 0; i < player->pieces.size(); ++i)
+        if(player->pieces[i]->rank == possible_moves[0].old_rank &&
+           player->pieces[i]->file == possible_moves[0].old_file)
         {
-            if(player->pieces[i]->rank == possible_moves[move_number].old_rank &&
-               player->pieces[i]->file == possible_moves[move_number].old_file)
-            {
-                piece_to_move = player->pieces[i];
-                break;
-            }
+            piece_to_move = player->pieces[i];
+            break;
         }
-
-        //Reset the FEN_board to appear as if the move has been
-        //made in order to see check status
-        for(int i = 0; i < 8; ++i)
-        {
-            for(int j = 0; j < 8; ++j)
-            {
-                FEN_board[i][j] = possible_moves[move_number].current_FEN[i][j];
-            }
-        }
-
-        //Loop through until we find the king so we can see if its in check
-        for(int i = 0; i < 8 && !move_made; ++i)
-        {
-            for(int j = 0; j < 8 && !move_made; ++j)
-            {
-                if(((possible_moves[move_number].current_FEN[i][j] == 'k'
-                     && player_lower_case) ||
-                   (possible_moves[move_number].current_FEN[i][j] == 'K'
-                    && !player_lower_case)))
-                {
-                    //Found the king, if it is safe with this move,
-                    //make the move.  Otherwise, loop back through
-                    //and try a different move.
-                    if(!would_space_check(j, i))
-                    {
-                        //Print out all possible moves for the piece being moved
-                        std::cout << "------------- Move #" << game->moves.size() << "-------------\n";
-                        std::cout << piece_to_move->type << " currently at " << piece_to_move->file;
-                        std::cout << piece_to_move->rank << '\n';
-                        for(int i = 0; i < possible_moves.size(); ++i)
-                        {
-                            if(piece_to_move->rank == possible_moves[i].old_rank &&
-                               piece_to_move->file == possible_moves[i].old_file)
-                            {
-                                std::cout << "Can be moved to " << possible_moves[i].new_file;
-                                std::cout << possible_moves[i].new_rank << '\n';
-                            }
-                        }
-
-                        piece_to_move->move(possible_moves[move_number].new_file,
-                                        possible_moves[move_number].new_rank,
-                                        possible_moves[move_number].promotion);
-                        std::cout << "***** MOVED TO " << possible_moves[move_number].new_file;
-                        std::cout << possible_moves[move_number].new_rank << " *****\n";
-                        move_made = true;
-                    }
-                }
-            }
-        }
-
-
-
-        //Remove the last move from the list
-        possible_moves.erase(possible_moves.begin() + move_number);
     }
+    piece_to_move->move(possible_moves[0].new_file,
+                        possible_moves[0].new_rank,
+                        possible_moves[0].promotion);
 
     //Clear moves so we start fresh next turn
     possible_moves.clear();
@@ -277,6 +200,130 @@ void AI::print_current_board()
 
         std::cout << str << std::endl;
     }
+}
+
+bool AI::explore_moves(int limit)
+{
+    
+}
+
+void AI::find_possible_moves()
+{
+    for(int i = 0; i < 8; ++i)
+    {
+        for(int j = 0; j < 8; ++j)
+        {
+            if((FEN_board[i][j] == 'p' && player_lower_case) ||
+               (FEN_board[i][j] == 'P' && !player_lower_case))
+            {
+                move_pawn(i, j);
+            }
+            
+            if((FEN_board[i][j] == 'k' && player_lower_case) ||
+               (FEN_board[i][j] == 'K' && !player_lower_case))
+            {
+                move_king(i, j);
+            }
+            
+            if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
+               ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
+            {
+                move_rook_or_queen(i, j);
+            }
+            
+            if(((FEN_board[i][j] == 'b' || FEN_board[i][j] == 'q') && player_lower_case) ||
+               ((FEN_board[i][j] == 'B' || FEN_board[i][j] == 'Q') && !player_lower_case))
+            {
+                move_bishop_or_queen(i, j);
+            }
+            
+            if((FEN_board[i][j] == 'n' && player_lower_case) ||
+               (FEN_board[i][j] == 'N' && !player_lower_case))
+            {
+                move_knight(i, j);
+            }
+        }
+    }
+
+    for(int x = 0; x < possible_moves.size(); ++x)
+    {
+        //Reset the FEN_board to appear as if the move has been
+        //made in order to see check status
+        for(int i = 0; i < 8; ++i)
+        {
+            for(int j = 0; j < 8; ++j)
+            {
+                FEN_board[i][j] = possible_moves[x].current_FEN[i][j];
+            }
+        }
+        
+        //Loop through until we find the king so we can see if its in check
+        for(int i = 0; i < 8; ++i)
+        {
+            for(int j = 0; j < 8; ++j)
+            {
+                if(((possible_moves[x].current_FEN[i][j] == 'k'
+                     && player_lower_case) ||
+                    (possible_moves[x].current_FEN[i][j] == 'K'
+                     && !player_lower_case)))
+                {
+                    //Found the king, if it is safe with this move,
+                    //make the move.  Otherwise, loop back through
+                    //and try a different move.
+                    if(would_space_check(j, i))
+                    {
+                        possible_moves.erase(possible_moves.begin() + x);
+                    }
+                }
+            }
+        }
+    }
+}
+
+int AI::score_board()
+{
+    int score = 0;
+
+    for(int i = 0; i < 8; ++i)
+    {
+        for(int j = 0; j < 8; ++j)
+        {
+            if(FEN_board[i][j] == 'P')
+            {
+                score += 1;
+            }
+            else if(FEN_board[i][j] == 'p')
+            {
+                score -= 1;
+            }
+            else if(FEN_board[i][j] ==  'K' || FEN_board[i][j] == 'B')
+            {
+                score += 3;
+            }
+            else if(FEN_board[i][j] == 'k' || FEN_board[i][j] == 'b')
+            {
+                score -= 3;
+            }
+            else if(FEN_board[i][j] == 'R')
+            {
+                score += 5;
+            }
+            else if(FEN_board[i][j] == 'r')
+            {
+                score -= 5;
+            }
+            else if(FEN_board[i][j] == 'Q')
+            {
+                score += 9;
+            }
+            else if(FEN_board[i][j] == 'q')
+            {
+                score -= 9;
+            }
+        }
+    }
+
+    return score;
 }
 
 //Finds the possible moves of a given pawn on the current

@@ -24,12 +24,14 @@ namespace chess
 
     struct node
     {
+        std::vector<node> next_moves;
         char current_FEN[8][8];
         std::string old_file;
         std::string new_file;
         int old_rank;
         int new_rank;
         std::string promotion;
+        int white_score;
     };
 
 /// <summary>
@@ -92,6 +94,10 @@ public:
     //found in the accompanying C++ file
     void generate_FEN_array();
 
+    bool explore_moves(int limit);
+    void find_possible_moves();
+    int score_board();
+
     //Move generation functions
     void move_pawn(int rank, int file_num);
     void move_king(int rank, int file_num);
@@ -112,6 +118,7 @@ public:
 
     //Vector for holding all possible moves
     std::vector<node> possible_moves;
+    std::vector<node> starter_moves;
 
     //Double array holding the state of the board
     char FEN_board[8][8];
