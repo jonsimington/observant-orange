@@ -111,7 +111,7 @@ bool AI::run_turn()
     board_start.new_file = " ";
     board_start.old_rank = -1;
     board_start.new_rank = -1;
-    board_start.end_score = score_board();
+    board_start.end_score = score_board(FEN_board);
     if(player_lower_case)
     {
         board_start.is_white = false;
@@ -158,6 +158,7 @@ bool AI::run_turn()
                         possible_moves[0].promotion);
 
     //Clear moves so we start fresh next turn
+    std::cout << "Move made\n";
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
@@ -165,6 +166,12 @@ bool AI::run_turn()
 bool AI::explore_moves(int limit, node start_board)
 {
     int move_index = 0;
+
+    if(limit <= 0)
+    {
+        start_board.end_score = score_board(start_board.current_FEN);
+        return start_board.end_score;
+    }
 
     for(int i = 0; i < possible_moves.size(); ++i)
     {
@@ -188,6 +195,29 @@ bool AI::explore_moves(int limit, node start_board)
     find_possible_moves();
 
     current_move.next_moves = possible_moves;
+
+    int number_of_moves = current_move.next_moves.size();
+
+    for(int x = 0; x < number_of_moves; ++x)
+    {
+        explore_moves(limit - 1, current_move.next_moves[x]);
+    }
+
+    sort(current_move.next_moves.begin(), current_move.next_moves.end(), sortNodes());
+
+    int move_num = 0;
+
+    if(current_move.is_white)
+    {
+        move_num = current_move.next_moves.size() - 1;
+        current_move.end_score = current_move.next_moves[move_num].end_score;
+    }
+    else
+    {
+        current_move.end_score = current_move.next_moves[move_num].end_score;
+    }
+
+    return true;
 }
 
 void AI::find_possible_moves()
@@ -263,7 +293,7 @@ void AI::find_possible_moves()
     }
 }
 
-int AI::score_board()
+int AI::score_board(char board_to_score[8][8])
 {
     int score = 0;
 
@@ -271,35 +301,35 @@ int AI::score_board()
     {
         for(int j = 0; j < 8; ++j)
         {
-            if(FEN_board[i][j] == 'P')
+            if(board_to_score[i][j] == 'P')
             {
                 score += 1;
             }
-            else if(FEN_board[i][j] == 'p')
+            else if(board_to_score[i][j] == 'p')
             {
                 score -= 1;
             }
-            else if(FEN_board[i][j] ==  'K' || FEN_board[i][j] == 'B')
+            else if(board_to_score[i][j] ==  'K' || board_to_score[i][j] == 'B')
             {
                 score += 3;
             }
-            else if(FEN_board[i][j] == 'k' || FEN_board[i][j] == 'b')
+            else if(board_to_score[i][j] == 'k' || board_to_score[i][j] == 'b')
             {
                 score -= 3;
             }
-            else if(FEN_board[i][j] == 'R')
+            else if(board_to_score[i][j] == 'R')
             {
                 score += 5;
             }
-            else if(FEN_board[i][j] == 'r')
+            else if(board_to_score[i][j] == 'r')
             {
                 score -= 5;
             }
-            else if(FEN_board[i][j] == 'Q')
+            else if(board_to_score[i][j] == 'Q')
             {
                 score += 9;
             }
-            else if(FEN_board[i][j] == 'q')
+            else if(board_to_score[i][j] == 'q')
             {
                 score -= 9;
             }

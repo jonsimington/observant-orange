@@ -35,6 +35,20 @@ namespace chess
         bool is_white;
     };
 
+    struct sortNodes
+    {
+        inline bool operator() (const node &node1, const node &node2)
+        {
+            int firstValue = node1.end_score;
+            int secondValue = node2.end_score;
+            
+            //Sort based on the A* value with higher values first
+            //since they will be added to the frontier highest first, lowest
+            //last to start the frontier with the lowest values
+            return (firstValue > secondValue);
+        }
+    };
+
 /// <summary>
 /// This is the header file for building your Chess AI
 /// </summary>
@@ -97,7 +111,7 @@ public:
 
     bool explore_moves(int limit, node start_board);
     void find_possible_moves();
-    int score_board();
+    int score_board(char board_to_score[8][8]);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
