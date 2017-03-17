@@ -31,7 +31,8 @@ namespace chess
         int old_rank;
         int new_rank;
         std::string promotion;
-        int white_score;
+        int end_score;
+        bool is_white;
     };
 
 /// <summary>
@@ -94,7 +95,7 @@ public:
     //found in the accompanying C++ file
     void generate_FEN_array();
 
-    bool explore_moves(int limit);
+    bool explore_moves(int limit, node start_board);
     void find_possible_moves();
     int score_board();
 
