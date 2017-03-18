@@ -130,92 +130,131 @@ bool AI::run_turn()
     int limit = 0;
     while(!end_game_found)
     {
-        limit += 20;
-
-        //Clear the tracked boards for the next search
-        possible_moves.clear();
+        limit += 5;
 
         //DFGS starting at the top board using the
         //calculated depth limit
-        if(explore_moves(limit, board_start))
+        std::cout << "Over and over again\n";
+        if(explore_moves(limit, &board_start))
             end_game_found = true;
+    }
+
+    int move_num = 0;
+    
+    if(board_start.is_white)
+    {
+        move_num = board_start.next_moves.size() - 1;
     }
 
     Piece piece_to_move;
 
     //Find the piece to move
+    std::cout << "Pieces: " << player->pieces.size() << '\n';
     for(int i = 0; i < player->pieces.size(); ++i)
     {
-        if(player->pieces[i]->rank == possible_moves[0].old_rank &&
-           player->pieces[i]->file == possible_moves[0].old_file)
+        std::cout << "i = " << i << '\n';
+        if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
+           player->pieces[i]->file == board_start.next_moves[move_num].old_file)
         {
+                std::cout << "Piece: " << player->pieces[i]->type << " at " << player->pieces[i]->file << " " << player->pieces[i]->rank << "\n";
             piece_to_move = player->pieces[i];
             break;
         }
     }
-    piece_to_move->move(possible_moves[0].new_file,
-                        possible_moves[0].new_rank,
-                        possible_moves[0].promotion);
+
+    std::cout << "end\n";
+
+    piece_to_move->move(board_start.next_moves[move_num].new_file,
+                        board_start.next_moves[move_num].new_rank,
+                        board_start.next_moves[move_num].promotion);
 
     //Clear moves so we start fresh next turn
-    std::cout << "Move made\n";
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
 
-bool AI::explore_moves(int limit, node start_board)
+bool AI::explore_moves(int limit, node *start_board)
 {
+    //Clear the tracked boards for the next search
+    possible_moves.clear();
+
     int move_index = 0;
 
     if(limit <= 0)
     {
-        start_board.end_score = score_board(start_board.current_FEN);
-        return start_board.end_score;
+        start_board->end_score = score_board(start_board->current_FEN);
+        return true;
     }
 
-    for(int i = 0; i < possible_moves.size(); ++i)
+    for(int z = 0; z < start_board->next_moves.size(); ++z)
     {
-        if(possible_moves[i].end_score == 100)
+        if(start_board->next_moves[z].end_score == 100)
         {
-            move_index = i;
+
+    std::cout << "Here 1 and limit " << limit << "\n";
+
+            node current_move = start_board->next_moves[z];
+
+            if(!current_move.is_white)
+            {
+                player_lower_case = true;
+            }
+            else
+            {
+                player_lower_case = false;
+            }
+
+            std::cout << "------\n";
+
+            //Set the move's FEN board to the original one
+            for(int i = 0; i < 8; ++i)
+            {
+                for(int j = 0; j < 8; ++j)
+                {
+                    FEN_board[i][j] = current_move.current_FEN[i][j];
+                }
+            }
+
+            std::cout << "------\n";
+
+
+            find_possible_moves();
+
+            std::cout << "------\n";
+
+
+            current_move.next_moves = possible_moves;
+
+            std::cout << "Here 2 and limit " << limit << "\n";
+
+            int number_of_moves = current_move.next_moves.size();
+
+            for(int x = 0; x < number_of_moves; ++x)
+            {
+                explore_moves(limit - 1, &current_move);
+            }
+
+            std::cout << "Here 3 and limit " << limit << "\n";
+
+            sort(current_move.next_moves.begin(), current_move.next_moves.end(), sortNodes());
+
+            int move_num = 0;
+
+            std::cout << "Here 4 and limit " << limit << "\n";
+
+            if(current_move.is_white)
+            {
+                move_num = current_move.next_moves.size() - 1;
+                current_move.end_score = current_move.next_moves[move_num].end_score;
+            }
+            else
+            {
+                current_move.end_score = current_move.next_moves[move_num].end_score;
+            }
         }
     }
 
-    node current_move = possible_moves[move_index];
-
-    if(!current_move.is_white)
-    {
-        player_lower_case = true;
-    }
-    else
-    {
-        player_lower_case = false;
-    }
-
-    find_possible_moves();
-
-    current_move.next_moves = possible_moves;
-
-    int number_of_moves = current_move.next_moves.size();
-
-    for(int x = 0; x < number_of_moves; ++x)
-    {
-        explore_moves(limit - 1, current_move.next_moves[x]);
-    }
-
-    sort(current_move.next_moves.begin(), current_move.next_moves.end(), sortNodes());
-
-    int move_num = 0;
-
-    if(current_move.is_white)
-    {
-        move_num = current_move.next_moves.size() - 1;
-        current_move.end_score = current_move.next_moves[move_num].end_score;
-    }
-    else
-    {
-        current_move.end_score = current_move.next_moves[move_num].end_score;
-    }
+    std::cout << "++++++++++++++++++++\n";
 
     return true;
 }

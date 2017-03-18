@@ -109,7 +109,7 @@ public:
     //found in the accompanying C++ file
     void generate_FEN_array();
 
-    bool explore_moves(int limit, node start_board);
+    bool explore_moves(int limit, node *start_board);
     void find_possible_moves();
     int score_board(char board_to_score[8][8]);
 
