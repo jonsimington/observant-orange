@@ -21,7 +21,6 @@ namespace cpp_client
 
 namespace chess
 {
-
     struct node
     {
         std::vector<node> next_moves;
@@ -41,7 +40,7 @@ namespace chess
         {
             int firstValue = node1.end_score;
             int secondValue = node2.end_score;
-            
+
             //Sort based on the A* value with higher values first
             //since they will be added to the frontier highest first, lowest
             //last to start the frontier with the lowest values
@@ -110,8 +109,10 @@ public:
     void generate_FEN_array();
 
     bool explore_moves(int limit, node *start_board);
+    int find_move_number(node game_board);
     void find_possible_moves();
     int score_board(char board_to_score[8][8]);
+    char find_file(int file_num);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
@@ -126,8 +127,8 @@ public:
     void promote_pawn(int file_num, int new_file, int old_rank, int new_rank);
 
     //Set up move function and check space functions
-    void set_up_move(int old_file, int new_file, int old_rank,
-                    int new_rank, std::string promo);
+    void set_up_move(int old_f, int new_f, int old_r,
+                    int new_r, std::string promo);
     bool empty_space(int file_num, int rank);
     bool opponent_located(int file_num, int rank);
 
@@ -146,6 +147,8 @@ public:
     //Whether or not the current player is denoted by lower
     //case characters in the FEN string
     bool player_lower_case;
+    bool me_lower_case;
+    int current_score;
 
     // ####################
     // Don't edit these!

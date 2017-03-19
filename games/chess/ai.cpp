@@ -48,6 +48,7 @@ void AI::start()
     {
         player_lower_case = true;
     }
+    me_lower_case = player_lower_case;
 }
 
 /// <summary>
@@ -76,24 +77,9 @@ bool AI::run_turn()
 {
     // Here is where you'll want to code your AI.
     generate_FEN_array();
+    player_lower_case = me_lower_case;
 
-    // We've provided sample code that:
-    //    1) prints the board to the console
-    //    2) prints the opponent's last move to the console
-    //    3) prints how much time remaining this AI has to calculate moves
-    //    4) makes a random (and probably invalid) move.
-
-    // 1) print the board to the console
-    //print_current_board();
-
-    // 2) print the opponent's last move to the console
-    /*if(game->moves.size() > 0)
-    {
-        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
-    }*/
-
-    // 3) print how much time remaining this AI has to calculate moves
-    //std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
+    current_score = score_board(FEN_board);
 
     //Set up current state of the board
     node board_start;
@@ -130,39 +116,36 @@ bool AI::run_turn()
     int limit = 0;
     while(!end_game_found)
     {
-        limit += 5;
+        limit = 1;
 
         //DFGS starting at the top board using the
         //calculated depth limit
-        std::cout << "Over and over again\n";
         if(explore_moves(limit, &board_start))
             end_game_found = true;
     }
 
-    int move_num = 0;
-    
-    if(board_start.is_white)
-    {
-        move_num = board_start.next_moves.size() - 1;
-    }
-
+    int move_num = find_move_number(board_start);
     Piece piece_to_move;
 
+    std::cout << "++++ OLD ++++\n";
+    std::cout << "Rank: " << board_start.next_moves[move_num].old_rank << '\n';
+    std::cout << "File: " << board_start.next_moves[move_num].old_file << '\n';
+    std::cout << "++++ NEW ++++\n";
+    std::cout << "Rank: " << board_start.next_moves[move_num].new_rank << '\n';
+    std::cout << "File: " << board_start.next_moves[move_num].new_file << '\n';
+
     //Find the piece to move
-    std::cout << "Pieces: " << player->pieces.size() << '\n';
     for(int i = 0; i < player->pieces.size(); ++i)
     {
-        std::cout << "i = " << i << '\n';
         if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
            player->pieces[i]->file == board_start.next_moves[move_num].old_file)
         {
-                std::cout << "Piece: " << player->pieces[i]->type << " at " << player->pieces[i]->file << " " << player->pieces[i]->rank << "\n";
             piece_to_move = player->pieces[i];
             break;
         }
     }
 
-    std::cout << "end\n";
+    std::cout << "-------------------------\n";
 
     piece_to_move->move(board_start.next_moves[move_num].new_file,
                         board_start.next_moves[move_num].new_rank,
@@ -175,9 +158,6 @@ bool AI::run_turn()
 
 bool AI::explore_moves(int limit, node *start_board)
 {
-    //Clear the tracked boards for the next search
-    possible_moves.clear();
-
     int move_index = 0;
 
     if(limit <= 0)
@@ -186,77 +166,82 @@ bool AI::explore_moves(int limit, node *start_board)
         return true;
     }
 
+    if(start_board->is_white)
+    {
+        player_lower_case = true;
+    }
+    else
+    {
+        player_lower_case = false;
+    }
+
     for(int z = 0; z < start_board->next_moves.size(); ++z)
     {
-        if(start_board->next_moves[z].end_score == 100)
+        //Clear the tracked boards for the next search
+        possible_moves.clear();
+
+        //node current_move = start_board->next_moves[z];
+
+        //Set the move's FEN board to the original one
+        for(int i = 0; i < 8; ++i)
         {
-
-    std::cout << "Here 1 and limit " << limit << "\n";
-
-            node current_move = start_board->next_moves[z];
-
-            if(!current_move.is_white)
+            for(int j = 0; j < 8; ++j)
             {
-                player_lower_case = true;
+                FEN_board[i][j] = start_board->next_moves[z].current_FEN[i][j];
             }
-            else
-            {
-                player_lower_case = false;
-            }
+        }
 
-            std::cout << "------\n";
+        find_possible_moves();
 
-            //Set the move's FEN board to the original one
-            for(int i = 0; i < 8; ++i)
-            {
-                for(int j = 0; j < 8; ++j)
-                {
-                    FEN_board[i][j] = current_move.current_FEN[i][j];
-                }
-            }
+        start_board->next_moves[z].next_moves = possible_moves;
 
-            std::cout << "------\n";
+        explore_moves(limit - 1, &start_board->next_moves[z]);
+    }
 
+    sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
 
-            find_possible_moves();
+    int move_num = find_move_number(*start_board);
 
-            std::cout << "------\n";
+    start_board->end_score = start_board->next_moves[move_num].end_score;
+    return true;
+}
 
+int AI::find_move_number(node game_board)
+{
+    int move_num = 0;
 
-            current_move.next_moves = possible_moves;
+    if(game_board.is_white)
+    {
+        move_num = game_board.next_moves.size() - 1;
+    }
 
-            std::cout << "Here 2 and limit " << limit << "\n";
+    int best_score = game_board.next_moves[move_num].end_score;
+    bool found_move = false;
+    int moves = 0;
 
-            int number_of_moves = current_move.next_moves.size();
-
-            for(int x = 0; x < number_of_moves; ++x)
-            {
-                explore_moves(limit - 1, &current_move);
-            }
-
-            std::cout << "Here 3 and limit " << limit << "\n";
-
-            sort(current_move.next_moves.begin(), current_move.next_moves.end(), sortNodes());
-
-            int move_num = 0;
-
-            std::cout << "Here 4 and limit " << limit << "\n";
-
-            if(current_move.is_white)
-            {
-                move_num = current_move.next_moves.size() - 1;
-                current_move.end_score = current_move.next_moves[move_num].end_score;
-            }
-            else
-            {
-                current_move.end_score = current_move.next_moves[move_num].end_score;
-            }
+    for(int i = 0; i < game_board.next_moves.size(); ++i)
+    {
+        if(game_board.next_moves[i].end_score == best_score)
+        {
+            ++moves;
         }
     }
 
-    std::cout << "++++++++++++++++++++\n";
+    if(moves > 1)
+    {
+        int random = rand() % moves;
 
-    return true;
+        if(game_board.is_white)
+        {
+            move_num -= random;
+        }
+        else
+        {
+            move_num += random;
+        }
+    }
+
+    return move_num;
 }
 
 void AI::find_possible_moves()
@@ -265,6 +250,7 @@ void AI::find_possible_moves()
     {
         for(int j = 0; j < 8; ++j)
         {
+            
             if((FEN_board[i][j] == 'p' && player_lower_case) ||
                (FEN_board[i][j] == 'P' && !player_lower_case))
             {
@@ -348,11 +334,11 @@ int AI::score_board(char board_to_score[8][8])
             {
                 score -= 1;
             }
-            else if(board_to_score[i][j] ==  'K' || board_to_score[i][j] == 'B')
+            else if(board_to_score[i][j] ==  'N' || board_to_score[i][j] == 'B')
             {
                 score += 3;
             }
-            else if(board_to_score[i][j] == 'k' || board_to_score[i][j] == 'b')
+            else if(board_to_score[i][j] == 'n' || board_to_score[i][j] == 'b')
             {
                 score -= 3;
             }
@@ -854,8 +840,8 @@ void AI::promote_pawn(int file_num, int new_file, int old_rank, int new_rank)
 //This function sets up a move given a pieces old location and new location
 //by storing both those and the possible pawn promotion in a small structure
 //to be referenced later when deciding which move to make
-void AI::set_up_move(int old_file, int new_file, int old_rank,
-                   int new_rank, std::string promo)
+void AI::set_up_move(int old_f, int new_f, int old_r,
+                   int new_r, std::string promo)
 {
     node move_to_make;
 
@@ -869,26 +855,61 @@ void AI::set_up_move(int old_file, int new_file, int old_rank,
     }
 
     //Make the move on the FEN board (in the array)
-    move_to_make.current_FEN[new_rank][new_file] = FEN_board[old_rank][old_file];
-    move_to_make.current_FEN[old_rank][old_file] = '.';
+    move_to_make.current_FEN[new_r][new_f] = FEN_board[old_r][old_f];
+    move_to_make.current_FEN[old_r][old_f] = '.';
 
     //Set up the old and new locations in the structure for later look
     //up and moving of the piece
-    move_to_make.old_file = old_file + 'a';
-    move_to_make.new_file = new_file + 'a';
-    move_to_make.old_rank = old_rank + 1;
-    move_to_make.new_rank = new_rank + 1;
+    move_to_make.old_file = old_f + 'a';
+    move_to_make.new_file = new_f + 'a';
+    move_to_make.old_rank = old_r + 1;
+    move_to_make.new_rank = new_r + 1;
     move_to_make.promotion = promo;
-
-    move_to_make.end_score = 10;
 
     //Will the next player be white?
     //Move made was by black, set the board to white
     //or visa versa
     move_to_make.is_white = player_lower_case;
 
+
     //Add the move to the list of possible moves
     possible_moves.push_back(move_to_make);
+}
+
+char AI::find_file(int file_num)
+{
+    if(file_num == 0)
+    {
+        return 'a';
+    }
+    else if(file_num == 1)
+    {
+        return 'b';
+    }
+    else if(file_num == 2)
+    {
+        return 'c';
+    }
+    else if(file_num == 3)
+    {
+        return 'd';
+    }
+    else if(file_num == 4)
+    {
+        return 'e';
+    }
+    else if(file_num == 5)
+    {
+        return 'f';
+    }
+    else if(file_num == 6)
+    {
+        return 'g';
+    }
+    else if(file_num == 7)
+    {
+        return 'h';
+    }
 }
 
 //Determine if the king is in check while in the current given location
@@ -1215,6 +1236,7 @@ void AI::check_for_castling(int rank, int file_num)
                         kingside = false;
                     }
                 }
+
                 if(kingside == true)
                 {
                     //Castling is possible, set up the move
