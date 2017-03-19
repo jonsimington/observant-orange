@@ -93,8 +93,8 @@ bool AI::run_turn()
         }
     }
 
-    board_start.old_file = " ";
-    board_start.new_file = " ";
+    board_start.old_file = -1;
+    board_start.new_file = -1;
     board_start.old_rank = -1;
     board_start.new_rank = -1;
     board_start.end_score = score_board(FEN_board);
@@ -116,55 +116,67 @@ bool AI::run_turn()
     int limit = 0;
     while(!end_game_found)
     {
-        limit = 1;
+        ++limit;
 
         //DFGS starting at the top board using the
         //calculated depth limit
-        if(explore_moves(limit, &board_start))
+        if(limit > 4 || explore_moves(limit, &board_start) != current_score)
             end_game_found = true;
     }
 
     int move_num = find_move_number(board_start);
     Piece piece_to_move;
-
-    std::cout << "++++ OLD ++++\n";
-    std::cout << "Rank: " << board_start.next_moves[move_num].old_rank << '\n';
-    std::cout << "File: " << board_start.next_moves[move_num].old_file << '\n';
-    std::cout << "++++ NEW ++++\n";
-    std::cout << "Rank: " << board_start.next_moves[move_num].new_rank << '\n';
-    std::cout << "File: " << board_start.next_moves[move_num].new_file << '\n';
+    std::string str;
+    str = find_file(board_start.next_moves[move_num].old_file);
 
     //Find the piece to move
     for(int i = 0; i < player->pieces.size(); ++i)
     {
         if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
-           player->pieces[i]->file == board_start.next_moves[move_num].old_file)
+           player->pieces[i]->file == str)
         {
             piece_to_move = player->pieces[i];
             break;
         }
     }
 
-    std::cout << "-------------------------\n";
+    str = find_file(board_start.next_moves[move_num].new_file);
 
-    piece_to_move->move(board_start.next_moves[move_num].new_file,
+    piece_to_move->move(str,
                         board_start.next_moves[move_num].new_rank,
                         board_start.next_moves[move_num].promotion);
+    std::cout << "------------------------\n";
+
 
     //Clear moves so we start fresh next turn
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
 
-bool AI::explore_moves(int limit, node *start_board)
+int AI::explore_moves(int limit, node *start_board)
 {
     int move_index = 0;
+    std::cout << "+++++ 1 +++++\n";
+
 
     if(limit <= 0)
     {
-        start_board->end_score = score_board(start_board->current_FEN);
-        return true;
+        int score = score_board(start_board->current_FEN);
+        if(insufficient_material(start_board->current_FEN))
+        {
+            if(start_board->is_white)
+            {
+                score += 100;
+            }
+            else
+            {
+                score += -100;
+            }
+        }
+        return score;
     }
+    std::cout << "+++++ 2 +++++\n";
+
 
     if(start_board->is_white)
     {
@@ -175,42 +187,94 @@ bool AI::explore_moves(int limit, node *start_board)
         player_lower_case = false;
     }
 
-    for(int z = 0; z < start_board->next_moves.size(); ++z)
+    if(!start_board->next_moves.empty())
     {
-        //Clear the tracked boards for the next search
-        possible_moves.clear();
+        std::cout << "+++++ 4 +++++\n";
 
-        //node current_move = start_board->next_moves[z];
+        for(int z = 0; z < start_board->next_moves.size(); ++z)
+        {
+            //Clear the tracked boards for the next search
+            possible_moves.clear();
 
-        //Set the move's FEN board to the original one
+            //node current_move = start_board->next_moves[z];
+
+            //Set the move's FEN board to the original one
+            for(int i = 0; i < 8; ++i)
+            {
+                for(int j = 0; j < 8; ++j)
+                {
+                    FEN_board[i][j] = start_board->next_moves[z].current_FEN[i][j];
+                }
+            }
+
+            find_possible_moves();
+
+            start_board->next_moves[z].next_moves = possible_moves;
+
+            start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z]);
+        }
+
+        sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
+
+        int move_num = find_move_number(*start_board);
+        std::cout << "+++++ 5 +++++\n";
+        std::cout << "move_num: " << move_num << '\n';
+        start_board->end_score = start_board->next_moves[move_num].end_score;
+        std::cout << "+++++ 6 +++++\n";
+    }
+    else
+    {
+        //Loop through until we find the king so we can see if its in check
+        bool checked = false;
         for(int i = 0; i < 8; ++i)
         {
             for(int j = 0; j < 8; ++j)
             {
-                FEN_board[i][j] = start_board->next_moves[z].current_FEN[i][j];
+                if((start_board->current_FEN[i][j] == 'k'
+                    && !start_board->is_white) ||
+                   (start_board->current_FEN[i][j] == 'K'
+                    && start_board->is_white))
+                {
+                    //Found the king, if it is safe with this move,
+                    //make the move.  Otherwise, loop back through
+                    //and try a different move.
+                    if(would_space_check(j, i))
+                    {
+                        if(start_board->is_white)
+                        {
+                            start_board->end_score = 100;
+                        }
+                        else
+                        {
+                            start_board->end_score = -100;
+                        }
+                        checked = true;
+                    }
+                }
             }
         }
-
-        find_possible_moves();
-
-        start_board->next_moves[z].next_moves = possible_moves;
-
-        explore_moves(limit - 1, &start_board->next_moves[z]);
+        if(checked == false)
+        {
+            if(start_board->is_white)
+            {
+                start_board->end_score = -100;
+            }
+            else
+            {
+                start_board->end_score = 100;
+            }
+        }
     }
+    std::cout << "+++++ 7 +++++\n";
 
-    sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
-
-    int move_num = find_move_number(*start_board);
-
-    start_board->end_score = start_board->next_moves[move_num].end_score;
-    return true;
+    return start_board->end_score;
 }
 
 int AI::find_move_number(node game_board)
 {
     int move_num = 0;
 
-    if(game_board.is_white)
+    if(!game_board.is_white)
     {
         move_num = game_board.next_moves.size() - 1;
     }
@@ -231,7 +295,7 @@ int AI::find_move_number(node game_board)
     {
         int random = rand() % moves;
 
-        if(game_board.is_white)
+        if(!game_board.is_white)
         {
             move_num -= random;
         }
@@ -300,10 +364,10 @@ void AI::find_possible_moves()
         {
             for(int j = 0; j < 8; ++j)
             {
-                if(((possible_moves[x].current_FEN[i][j] == 'k'
+                if((possible_moves[x].current_FEN[i][j] == 'k'
                      && player_lower_case) ||
                     (possible_moves[x].current_FEN[i][j] == 'K'
-                     && !player_lower_case)))
+                     && !player_lower_case))
                 {
                     //Found the king, if it is safe with this move,
                     //make the move.  Otherwise, loop back through
@@ -311,6 +375,7 @@ void AI::find_possible_moves()
                     if(would_space_check(j, i))
                     {
                         possible_moves.erase(possible_moves.begin() + x);
+                        --x;
                     }
                 }
             }
@@ -318,8 +383,40 @@ void AI::find_possible_moves()
     }
 }
 
+bool AI::insufficient_material(char board_to_score[8][8])
+{
+    int white_count = 0;
+    int black_count = 0;
+
+    for(int i = 0; i < 8; ++i)
+    {
+        for(int j = 0; j < 8; ++j)
+        {
+            if(board_to_score[i][j] == 'P' || board_to_score[i][j] == 'N' || board_to_score[i][j] == 'B' ||
+               board_to_score[i][j] == 'R' || board_to_score[i][j] == 'Q' || board_to_score[i][j] == 'K')
+            {
+                ++white_count;
+            }
+            else if(board_to_score[i][j] == 'p' || board_to_score[i][j] == 'n' || board_to_score[i][j] == 'b' ||
+                    board_to_score[i][j] == 'r' || board_to_score[i][j] == 'q' || board_to_score[i][j] == 'k')
+            {
+                ++black_count;
+            }
+        }
+    }
+
+    if(black_count <= 2 && white_count <= 2)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 int AI::score_board(char board_to_score[8][8])
 {
+    int white_score = 0;
+    int black_score = 0;
     int score = 0;
 
     for(int i = 0; i < 8; ++i)
@@ -328,39 +425,40 @@ int AI::score_board(char board_to_score[8][8])
         {
             if(board_to_score[i][j] == 'P')
             {
-                score += 1;
+                white_score += 1;
             }
             else if(board_to_score[i][j] == 'p')
             {
-                score -= 1;
+                black_score += 1;
             }
             else if(board_to_score[i][j] ==  'N' || board_to_score[i][j] == 'B')
             {
-                score += 3;
+                white_score += 3;
             }
             else if(board_to_score[i][j] == 'n' || board_to_score[i][j] == 'b')
             {
-                score -= 3;
+                black_score += 3;
             }
             else if(board_to_score[i][j] == 'R')
             {
-                score += 5;
+                white_score += 5;
             }
             else if(board_to_score[i][j] == 'r')
             {
-                score -= 5;
+                black_score += 5;
             }
             else if(board_to_score[i][j] == 'Q')
             {
-                score += 9;
+                white_score += 9;
             }
             else if(board_to_score[i][j] == 'q')
             {
-                score -= 9;
+                black_score += 9;
             }
         }
     }
 
+    score = white_score - black_score;
     return score;
 }
 
@@ -860,8 +958,8 @@ void AI::set_up_move(int old_f, int new_f, int old_r,
 
     //Set up the old and new locations in the structure for later look
     //up and moving of the piece
-    move_to_make.old_file = old_f + 'a';
-    move_to_make.new_file = new_f + 'a';
+    move_to_make.old_file = old_f;
+    move_to_make.new_file = new_f;
     move_to_make.old_rank = old_r + 1;
     move_to_make.new_rank = new_r + 1;
     move_to_make.promotion = promo;
@@ -870,7 +968,6 @@ void AI::set_up_move(int old_f, int new_f, int old_r,
     //Move made was by black, set the board to white
     //or visa versa
     move_to_make.is_white = player_lower_case;
-
 
     //Add the move to the list of possible moves
     possible_moves.push_back(move_to_make);
@@ -1226,7 +1323,7 @@ void AI::check_for_castling(int rank, int file_num)
                rook_file > file_num)
             {
                 bool kingside = true;
-                int diff = abs(rook_file - file_num) - 1;
+                int diff = abs(rook_file - file_num);
                 //Determine if there are only empty spaces between
                 //the king and the castle
                 for(int i = 1; i < diff; ++i)
@@ -1251,7 +1348,7 @@ void AI::check_for_castling(int rank, int file_num)
                rook_file < file_num)
             {
                 bool queenside = true;
-                int diff = abs(rook_file - file_num) - 1;
+                int diff = abs(rook_file - file_num);
                 //Determine if there are only empty spaces between
                 //the king and the castle
                 for(int i = 1; i < diff; ++i)

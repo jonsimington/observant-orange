@@ -25,8 +25,8 @@ namespace chess
     {
         std::vector<node> next_moves;
         char current_FEN[8][8];
-        std::string old_file;
-        std::string new_file;
+        int old_file;
+        int new_file;
         int old_rank;
         int new_rank;
         std::string promotion;
@@ -108,9 +108,10 @@ public:
     //found in the accompanying C++ file
     void generate_FEN_array();
 
-    bool explore_moves(int limit, node *start_board);
+    int explore_moves(int limit, node *start_board);
     int find_move_number(node game_board);
     void find_possible_moves();
+    bool insufficient_material(char board_to_score[8][8]);
     int score_board(char board_to_score[8][8]);
     char find_file(int file_num);
 
