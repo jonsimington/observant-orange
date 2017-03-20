@@ -124,7 +124,7 @@ public:
     bool insufficient_material(char board_to_score[8][8]);
     int score_board(char board_to_score[8][8]);
     char find_file(int file_num);
-    bool move_made_before(int old_f, int new_f, int old_r, int new_r, char ctype);
+    bool move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
