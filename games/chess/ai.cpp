@@ -120,8 +120,9 @@ bool AI::run_turn()
 
         //DFGS starting at the top board using the
         //calculated depth limit
-        if(limit > 4 || explore_moves(limit, &board_start) != current_score)
+        if(limit > 3 || explore_moves(limit, &board_start) != current_score)
             end_game_found = true;
+        std::cout << "akdjfdsjaglkjsadglkjsadl\n";
     }
 
     int move_num = find_move_number(board_start);
@@ -139,6 +140,14 @@ bool AI::run_turn()
             break;
         }
     }
+
+    move_data new_move;
+    new_move.old_file = board_start.next_moves[move_num].old_file;
+    new_move.new_file = board_start.next_moves[move_num].new_file;
+    new_move.old_rank = board_start.next_moves[move_num].old_rank;
+    new_move.new_rank = board_start.next_moves[move_num].new_rank;
+    new_move.type = piece_to_move->type;
+    moves_made.push_back(new_move);
 
     str = find_file(board_start.next_moves[move_num].new_file);
 
@@ -158,21 +167,41 @@ int AI::explore_moves(int limit, node *start_board)
     int move_index = 0;
     std::cout << "+++++ 1 +++++\n";
 
+    if(move_made_before(start_board->old_file, start_board->new_file, start_board->old_rank,
+                        start_board->new_rank,
+                        start_board->current_FEN[start_board->new_rank][start_board->new_file]))
+    {
+        int score = 0;
+        if(start_board->is_white)
+        {
+            score += -100;
+        }
+        else
+        {
+            score += 100;
+        }
+
+        return score;
+    }
+
 
     if(limit <= 0)
     {
+        std::cout << "Here1\n";
         int score = score_board(start_board->current_FEN);
         if(insufficient_material(start_board->current_FEN))
         {
+            std::cout << "Here2\n";
             if(start_board->is_white)
-            {
-                score += 100;
-            }
-            else
             {
                 score += -100;
             }
+            else
+            {
+                score += 100;
+            }
         }
+        std::cout << "Here3\n";
         return score;
     }
     std::cout << "+++++ 2 +++++\n";
@@ -212,15 +241,18 @@ int AI::explore_moves(int limit, node *start_board)
             start_board->next_moves[z].next_moves = possible_moves;
 
             start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z]);
+            std::cout << "+++++ 5 +++++\n";
+
         }
+        std::cout << "+++++ 6 +++++\n";
 
         sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
+        std::cout << "+++++ 7 +++++\n";
 
         int move_num = find_move_number(*start_board);
-        std::cout << "+++++ 5 +++++\n";
         std::cout << "move_num: " << move_num << '\n';
         start_board->end_score = start_board->next_moves[move_num].end_score;
-        std::cout << "+++++ 6 +++++\n";
+        std::cout << "+++++ 8 +++++\n";
     }
     else
     {
@@ -265,7 +297,7 @@ int AI::explore_moves(int limit, node *start_board)
             }
         }
     }
-    std::cout << "+++++ 7 +++++\n";
+    std::cout << "+++++ 9 +++++\n";
 
     return start_board->end_score;
 }
@@ -306,6 +338,42 @@ int AI::find_move_number(node game_board)
     }
 
     return move_num;
+}
+
+bool AI::move_made_before(int old_f, int new_f, int old_r, int new_r, char ctype)
+{
+    for(int i = 0; i < moves_made.size(); ++i)
+    {
+        if(moves_made[i].old_file == old_f && moves_made[i].new_file == new_f &&
+           moves_made[i].old_rank == old_r && moves_made[i].new_rank == new_r)
+        {
+            if((ctype == 'p' || ctype == 'P') && moves_made[i].type == "Pawn")
+            {
+                return true;
+            }
+            else if((ctype == 'b' || ctype == 'B') && moves_made[i].type == "Bishop")
+            {
+                return true;
+            }
+            else if((ctype == 'k' || ctype == 'K') && moves_made[i].type == "King")
+            {
+                return true;
+            }
+            else if((ctype == 'q' || ctype == 'Q') && moves_made[i].type == "Queen")
+            {
+                return true;
+            }
+            else if((ctype == 'n' || ctype == 'N') && moves_made[i].type == "Knight")
+            {
+                return true;
+            }
+            else if((ctype == 'r' || ctype == 'R') && moves_made[i].type == "Bishop")
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void AI::find_possible_moves()
@@ -1038,16 +1106,16 @@ bool AI::would_space_check(int file_num, int rank)
                  FEN_board[k][j] == 'b' || FEN_board[k][j] == 'q') && !player_lower_case))
             {
                 attack_file = file_num + 1;
-                if((j == attack_file && k == attack_rank + player->rank_direction &&
-                    (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')) ||
-                   (j == attack_file && k == attack_rank - player->rank_direction))
+                if((j == attack_file && k == attack_rank + player->rank_direction) ||
+                   ((j == attack_file && k == attack_rank - player->rank_direction) &&
+                    (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')))
                 {
                     return true;
                 }
                 attack_file = file_num - 1;
-                if((j == attack_file && k == attack_rank + player->rank_direction &&
-                    (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')) ||
-                   (j == attack_file && k == attack_rank - player->rank_direction))
+                if((j == attack_file && k == attack_rank + player->rank_direction) ||
+                   ((j == attack_file && k == attack_rank - player->rank_direction) &&
+                   (FEN_board[k][j] != 'P' || FEN_board[k][j] != 'p')))
                 {
                     return true;
                 }

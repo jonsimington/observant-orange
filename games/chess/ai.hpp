@@ -48,6 +48,15 @@ namespace chess
         }
     };
 
+    struct move_data
+    {
+        int old_file;
+        int new_file;
+        int old_rank;
+        int new_rank;
+        std::string type;
+    };
+
 /// <summary>
 /// This is the header file for building your Chess AI
 /// </summary>
@@ -114,6 +123,7 @@ public:
     bool insufficient_material(char board_to_score[8][8]);
     int score_board(char board_to_score[8][8]);
     char find_file(int file_num);
+    bool move_made_before(int old_f, int new_f, int old_r, int new_r, char ctype);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
@@ -136,6 +146,7 @@ public:
     //Vector for holding all possible moves
     std::vector<node> possible_moves;
     std::vector<node> starter_moves;
+    std::vector<move_data> moves_made;
 
     //Double array holding the state of the board
     char FEN_board[8][8];
