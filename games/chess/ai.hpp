@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <ctype.h>
+#include <algorithm>
 
 namespace cpp_client
 {

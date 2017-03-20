@@ -246,7 +246,7 @@ int AI::explore_moves(int limit, node *start_board)
         }
         std::cout << "+++++ 6 +++++\n";
 
-        std::sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
+        sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
         std::cout << "+++++ 7 +++++\n";
 
         int move_num = find_move_number(*start_board);
