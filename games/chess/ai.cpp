@@ -75,13 +75,15 @@ void AI::ended(bool won, const std::string& reason)
 /// <returns>Represents if you want to end your turn. True means end your turn, False means to keep your turn going and re-call this function.</returns>
 bool AI::run_turn()
 {
-    // Here is where you'll want to code your AI.
+    //Generate the current state's FEN array for predicting moves
     generate_FEN_array();
+    //Reset the player's case status
     player_lower_case = me_lower_case;
 
+    //Get the current score of the board
     current_score = score_board(FEN_board);
 
-    //Set up current state of the board
+    //Create the node that will be the starting board
     node board_start;
 
     //Set the move's FEN board to the original one
@@ -93,11 +95,16 @@ bool AI::run_turn()
         }
     }
 
+    //Set up the node with a blank move and the current score
     board_start.old_file = -1;
     board_start.new_file = -1;
     board_start.old_rank = -1;
     board_start.new_rank = -1;
     board_start.end_score = score_board(FEN_board);
+
+    //If the player is currently white, the board will be
+    //set to black since black will make the next move and
+    //vica versa
     if(player_lower_case)
     {
         board_start.is_white = false;
@@ -107,70 +114,87 @@ bool AI::run_turn()
         board_start.is_white = true;
     }
 
-    // 4) Generate all the possible moves by looking at each piece and
-    //finding its specific moves
+    //Find all possible moves for the current state of the board
+    //and set those up as the next moves possible
     find_possible_moves();
     board_start.next_moves = possible_moves;
 
+    //Start with a limit of 0 (1 once inside loop) and iterative
+    //depth-limited search on the possible moves using minimax
+    //Search until we have search 4 moves in advance (one above
+    //and 3 in the loop) - two for each player - or until the
+    //score has changed
     bool end_game_found = false;
     int limit = 0;
     while(!end_game_found)
     {
         ++limit;
 
-        //DFGS starting at the top board using the
-        //calculated depth limit
-        if(limit > 4 || explore_moves(limit, &board_start) != current_score)
+        //depth-limited search until a move that changes
+        //the score has been made or we've looked 2 moves each player in advance
+        if(limit > 3 || explore_moves(limit, &board_start) != current_score)
             end_game_found = true;
-        std::cout << "akdjfdsjaglkjsadglkjsadl\n";
     }
 
+    //Once the search has completed, find the index for the move that
+    //should be made (either highest/lowest value depending on color or
+    //a random move with the highest/lowest value when there are multiples
+    //that have the same score outcome)
     int move_num = find_move_number(board_start);
-    Piece piece_to_move;
-    std::string str;
-    str = find_file(board_start.next_moves[move_num].old_file);
 
-    //Find the piece to move
+    //Find the piece that matches the move to be made
+    Piece piece_to_move;
+    std::string file_str;
+    file_str = find_file(board_start.next_moves[move_num].old_file);
+
     for(int i = 0; i < player->pieces.size(); ++i)
     {
         if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
-           player->pieces[i]->file == str)
+           player->pieces[i]->file == file_str)
         {
             piece_to_move = player->pieces[i];
             break;
         }
     }
 
+    //Set up move_data for checking on repetition rules
     move_data new_move;
     new_move.old_file = board_start.next_moves[move_num].old_file;
     new_move.new_file = board_start.next_moves[move_num].new_file;
     new_move.old_rank = board_start.next_moves[move_num].old_rank;
     new_move.new_rank = board_start.next_moves[move_num].new_rank;
     new_move.type = piece_to_move->type;
-    if(moves_made.size() == 7)
+
+    //If at the maximum number of moves to check (8) then remove
+    //one to add the newly made move
+    if(moves_made.size() == 8)
     {
         moves_made.erase(moves_made.begin());
     }
     moves_made.push_back(new_move);
 
-    str = find_file(board_start.next_moves[move_num].new_file);
+    //Move the piece that matches the search outcome
+    file_str = find_file(board_start.next_moves[move_num].new_file);
 
-    piece_to_move->move(str,
+    piece_to_move->move(file_str,
                         board_start.next_moves[move_num].new_rank,
                         board_start.next_moves[move_num].promotion);
-    std::cout << "------------------------\n";
-
 
     //Clear moves so we start fresh next turn
     possible_moves.clear();
     return true; // to signify we are done with our turn.
 }
 
+//This function is used for the iterative depth-limited minimax search
+//on the possible moves that can be made in the game
+//It is a recursive function that calls itself until a limit has been met
 int AI::explore_moves(int limit, node *start_board)
 {
     int move_index = 0;
-    std::cout << "+++++ 1 +++++\n";
 
+    //Check to see if the start_board is in danger of the repetition draw
+    //rule, if it is, return with a very bad score (so it will not be chosen)
+    //Otherwise continue
     if(move_repetition(start_board->old_file, start_board->new_file, start_board->old_rank,
                         start_board->new_rank,
                         start_board->current_FEN[start_board->new_rank][start_board->new_file]))
@@ -178,39 +202,43 @@ int AI::explore_moves(int limit, node *start_board)
         int score = 0;
         if(start_board->is_white)
         {
+            //If the white player is moving, make the score low
             score += -100;
         }
         else
         {
+            //If the black player is moving, make the score high
             score += 100;
         }
 
         return score;
     }
 
-
+    //If the limit has been reached, find the score of the board and return
     if(limit <= 0)
     {
-        std::cout << "Here1\n";
         int score = score_board(start_board->current_FEN);
+
+        //If there is insufficient material left on the board, return
+        //a bad score in order to prevent this move from being made
+        //over others that have sufficient pieces left
         if(insufficient_material(start_board->current_FEN))
         {
-            std::cout << "Here2\n";
             if(start_board->is_white)
             {
+                //If the white player is moving, make the score low
                 score += -100;
             }
             else
             {
+                //If the black player is moving, make the score high
                 score += 100;
             }
         }
-        std::cout << "Here3\n";
         return score;
     }
-    std::cout << "+++++ 2 +++++\n";
 
-
+    //Reset the lower case check for looking for possible moves
     if(start_board->is_white)
     {
         player_lower_case = true;
@@ -220,18 +248,18 @@ int AI::explore_moves(int limit, node *start_board)
         player_lower_case = false;
     }
 
+    //If there are moves that can be made from the current board
     if(!start_board->next_moves.empty())
     {
-        std::cout << "+++++ 4 +++++\n";
-
+        //Loop through the moves and explore each one until a limit is met
+        //or a draw condition is found - returning a score that can be chosen
+        //from as a max or min
         for(int z = 0; z < start_board->next_moves.size(); ++z)
         {
             //Clear the tracked boards for the next search
             possible_moves.clear();
 
-            //node current_move = start_board->next_moves[z];
-
-            //Set the move's FEN board to the original one
+            //Set the move's FEN board to the current move's one (move z)
             for(int i = 0; i < 8; ++i)
             {
                 for(int j = 0; j < 8; ++j)
@@ -240,48 +268,52 @@ int AI::explore_moves(int limit, node *start_board)
                 }
             }
 
+            //Search the possible moves for this current move (using FEN_board)
             find_possible_moves();
 
+            //Set the next moves of move z to the possible moves that were found
             start_board->next_moves[z].next_moves = possible_moves;
 
+            //Explore move z for moves that can be made from there until a score is found
             start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z]);
-            std::cout << "+++++ 5 +++++\n";
-
         }
-        std::cout << "+++++ 6 +++++\n";
 
+        //Sort the moves from highest end_score to lowest end_score for minimax evaluation
         sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
-        std::cout << "+++++ 7 +++++\n";
 
+        //Based on how many moves result in the same score and the color
+        //of the current player, find the move index to make
         int move_num = find_move_number(*start_board);
-        std::cout << "move_num: " << move_num << '\n';
+
+        //Set the end_score of the parent board to the highest or lowest (depending on color)
+        //score of it's "next_moves" scores
         start_board->end_score = start_board->next_moves[move_num].end_score;
-        std::cout << "+++++ 8 +++++\n";
     }
+    //If there are no possible moves
     else
     {
-        //Loop through until we find the king so we can see if its in check
+        //Loop through until we find a king so we can see if its in check
         bool checked = false;
         for(int i = 0; i < 8; ++i)
         {
             for(int j = 0; j < 8; ++j)
             {
                 if((start_board->current_FEN[i][j] == 'k'
-                    && !start_board->is_white) ||
+                    && !me_lower_case) ||
                    (start_board->current_FEN[i][j] == 'K'
-                    && start_board->is_white))
+                    && me_lower_case))
                 {
-                    //Found the king, if it is safe with this move,
-                    //make the move.  Otherwise, loop back through
-                    //and try a different move.
+                    //The opponent's king is checkmated, high priority move
                     if(would_space_check(j, i))
                     {
                         if(start_board->is_white)
                         {
+                            //White will have a high score
                             start_board->end_score = 100;
                         }
                         else
                         {
+                            //Black will have a low score
                             start_board->end_score = -100;
                         }
                         checked = true;
@@ -289,6 +321,8 @@ int AI::explore_moves(int limit, node *start_board)
                 }
             }
         }
+        //If the king is not checkmated, a stalemate has been reached
+        //this is a draw - not a good outcome, bad score given
         if(checked == false)
         {
             if(start_board->is_white)
@@ -301,24 +335,32 @@ int AI::explore_moves(int limit, node *start_board)
             }
         }
     }
-    std::cout << "+++++ 9 +++++\n";
 
+    //Return the score of the starting board
     return start_board->end_score;
 }
 
+//This function finds the index of the move to be made
+//on the given game_board based on scores
 int AI::find_move_number(node game_board)
 {
+    //If the player is white, look for the first move
+    //in the list (highest score)
     int move_num = 0;
 
+    //If the player is not white, look for the last move
+    //in the list (lowest score)
     if(!game_board.is_white)
     {
         move_num = game_board.next_moves.size() - 1;
     }
 
+    //Best score is the value of the highest/lowest score
     int best_score = game_board.next_moves[move_num].end_score;
     bool found_move = false;
     int moves = 0;
 
+    //If there are multiple moves with the best score, calculate how many
     for(int i = 0; i < game_board.next_moves.size(); ++i)
     {
         if(game_board.next_moves[i].end_score == best_score)
@@ -327,6 +369,10 @@ int AI::find_move_number(node game_board)
         }
     }
 
+    //If there are multiple moves with the best score,
+    //determine a random move number to make from the
+    //options by increasing or decreasing the index based
+    //on the player color
     if(moves > 1)
     {
         int random = rand() % moves;
@@ -341,13 +387,18 @@ int AI::find_move_number(node game_board)
         }
     }
 
+    //Return the index of the move to make
     return move_num;
 }
 
+//This function is used to see if the 2-fold move repeition is going to occur
 bool AI::move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype)
 {
+    //If there have been atleast 7 moves made
     if(moves_made.size() == 7)
     {
+        //If moves 0,1, and 2 are the same as moves 4,5, and 6 then check the given
+        //move to see if it matches move 3 and would be a repeat move
         if(memcmp(&moves_made[0], &moves_made[4], sizeof(move_data)) == 0 &&
            memcmp(&moves_made[1], &moves_made[5], sizeof(move_data)) == 0 &&
            memcmp(&moves_made[2], &moves_made[6], sizeof(move_data)) == 0)
@@ -383,11 +434,15 @@ bool AI::move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype)
         }
     }
 
+    //The move will not cause a draw due to repetition
     return false;
 }
 
+//Find all the possible moves for the given case/color on
+//the set up FEN_board
 void AI::find_possible_moves()
 {
+    //Check each type of piece for moves to make
     for(int i = 0; i < 8; ++i)
     {
         for(int j = 0; j < 8; ++j)
@@ -425,6 +480,8 @@ void AI::find_possible_moves()
         }
     }
 
+    //For all the possible moves, check to see if the king is in danger or
+    //will be in danger after the move
     for(int x = 0; x < possible_moves.size(); ++x)
     {
         //Reset the FEN_board to appear as if the move has been
@@ -436,7 +493,7 @@ void AI::find_possible_moves()
                 FEN_board[i][j] = possible_moves[x].current_FEN[i][j];
             }
         }
-        
+
         //Loop through until we find the king so we can see if its in check
         for(int i = 0; i < 8; ++i)
         {
@@ -453,7 +510,10 @@ void AI::find_possible_moves()
                     if(would_space_check(j, i))
                     {
                         possible_moves.erase(possible_moves.begin() + x);
+                        //max_moves = possible_moves.size()
                         --x;
+                        i = 8;
+                        j = 8;
                     }
                 }
             }
@@ -461,6 +521,8 @@ void AI::find_possible_moves()
     }
 }
 
+//Determine if there is insufficient material on the board by
+//looking at a given FEN array
 bool AI::insufficient_material(char board_to_score[8][8])
 {
     int white_count = 0;
@@ -483,6 +545,8 @@ bool AI::insufficient_material(char board_to_score[8][8])
         }
     }
 
+    //If there are fewer than 2 pieces on both sides, there is
+    //insufficient material
     if(black_count <= 2 && white_count <= 2)
     {
         return true;
@@ -491,6 +555,8 @@ bool AI::insufficient_material(char board_to_score[8][8])
     return false;
 }
 
+//Score the board based on values that each piece has
+//High scores are in favor of white while lowe scores are in favor of black
 int AI::score_board(char board_to_score[8][8])
 {
     int white_score = 0;

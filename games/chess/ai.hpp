@@ -22,6 +22,8 @@ namespace cpp_client
 
 namespace chess
 {
+    //Node used to hold move data for actual
+    //moves to be made on the board
     struct node
     {
         std::vector<node> next_moves;
@@ -35,6 +37,8 @@ namespace chess
         bool is_white;
     };
 
+    //Sort nodes for minimax evaluation once all nodes in the vector
+    //have been set up and given an end_score
     struct sortNodes
     {
         inline bool operator() (const node &node1, const node &node2)
@@ -42,13 +46,15 @@ namespace chess
             int firstValue = node1.end_score;
             int secondValue = node2.end_score;
 
-            //Sort based on the A* value with higher values first
-            //since they will be added to the frontier highest first, lowest
-            //last to start the frontier with the lowest values
+            //Sort the values by end score with highest scores
+            //first and lowest scores last (white will choose
+            //from the front and black from the back of the vector)
             return (firstValue > secondValue);
         }
     };
 
+    //Holds data on past moves made to check
+    //for repetition rules
     struct move_data
     {
         int old_file;
@@ -118,13 +124,19 @@ public:
     //found in the accompanying C++ file
     void generate_FEN_array();
 
+    //Used for minimax evaluations to find the move to make
+    //and regressively search for moves
     int explore_moves(int limit, node *start_board);
     int find_move_number(node game_board);
     void find_possible_moves();
+
+    //Used to check for draw situations
     bool insufficient_material(char board_to_score[8][8]);
+    bool move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype);
+
+    //Scores the board and finds the given char file for a file number
     int score_board(char board_to_score[8][8]);
     char find_file(int file_num);
-    bool move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
