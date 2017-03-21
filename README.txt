@@ -2,7 +2,6 @@ Dana Payonk
 CS 5400
 Spring 2017
 Game Project #2
-Chess game with random moves
 
 Compiling and Running (on linux/mac):
 ----------------------------------------
