@@ -144,34 +144,47 @@ bool AI::run_turn()
 
     //Start with a limit of 0 (1 once inside loop) and iterative
     //depth-limited search on the possible moves using minimax
-    //Search until we have search 4 moves in advance (one above
-    //and 3 in the loop) - two for each player - or until the
-    //score has changed
+    //with alpha-beta pruning and time-limited iterative deepening
+    //depth-limited minimax search
     bool end_game_found = false;
     int limit = 0;
     stopTime = clock();
     node temp_board = board_start;
     node final_board = board_start;
     timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+
+    //Continue depth-limited search until time allowed
+    //divided by an average of 40 moves per game
+    //If it has run out of time, return -9999 so the search knows to use
+    //the last depth searched
     double timeAllowed = (((player->time_remaining) * 0.000000001) / 40);
     while(timeTaken < timeAllowed)
     {
+        //Set alpha and beta to near infinity and negative infinity
         int alpha = -10000;
         int beta = 10000;
+
+        //Increase the depth limit to search
         ++limit;
+
+        //Save the start board for searching
         board_start = temp_board;
 
         //depth-limited search until the alotted time for the move
-        //runs out (roughly 15 minutes/40 average moves per game = 22.5 seconds)
-        if(explore_moves(limit, &board_start, &alpha, &beta) == -1)
+        //runs out
+        if(explore_moves(limit, &board_start, &alpha, &beta) == -9999)
         {
+            //Use the last completed depth search if ran out of time
             board_start = final_board;
         }
         else
         {
+            //This depth search completed successfully (didn't run out of time)
             final_board = board_start;
         }
 
+        //Determine the time that has been taken for searching to decide
+        //if we should continue onto the next depth or stop here
         stopTime = clock();
         timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
     }
@@ -235,6 +248,11 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
 {
     stopTime = clock();
     timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+
+    //Check to see if the search has run out of time for this turn (time allowed
+    //divided by an average of 40 moves per game)
+    //If it has run out of time, return -9999 so the search knows to use
+    //the last depth searched
     if(timeTaken < (((player->time_remaining) * 0.000000001) / 40))
     {
         int move_index = 0;
@@ -416,7 +434,7 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
     }
     else
     {
-        return -1;
+        return -9999;
     }
 
     //Return the score of the starting board
