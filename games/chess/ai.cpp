@@ -75,10 +75,33 @@ void AI::ended(bool won, const std::string& reason)
 /// <returns>Represents if you want to end your turn. True means end your turn, False means to keep your turn going and re-call this function.</returns>
 bool AI::run_turn()
 {
+    static int turn_count = 0;
+
+    startTime = clock();
+    ++turn_count;
     //Generate the current state's FEN array for predicting moves
     generate_FEN_array();
     //Reset the player's case status
     player_lower_case = me_lower_case;
+
+    //Set up move_data for checking on repetition rules (save opponent's last move)
+    move_data new_move;
+    if(!game->moves.empty())
+    {
+        new_move.old_file = game->moves[game->moves.size()-1]->from_file[0] - 'a';
+        new_move.new_file = game->moves[game->moves.size()-1]->to_file[0] - 'a';
+        new_move.old_rank = game->moves[game->moves.size()-1]->from_rank;
+        new_move.new_rank = game->moves[game->moves.size()-1]->to_rank;
+        new_move.type = game->moves[game->moves.size()-1]->piece->type;
+
+        //If at the maximum number of moves to check (8) then remove
+        //one to add the newly made move
+        if(moves_made.size() == 8)
+        {
+            moves_made.erase(moves_made.begin());
+        }
+        moves_made.push_back(new_move);
+    }
 
     //Get the current score of the board
     current_score = score_board(FEN_board);
@@ -126,14 +149,31 @@ bool AI::run_turn()
     //score has changed
     bool end_game_found = false;
     int limit = 0;
-    while(!end_game_found)
+    stopTime = clock();
+    node temp_board = board_start;
+    node final_board = board_start;
+    timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+    double timeAllowed = (((player->time_remaining) * 0.000000001) / 40);
+    while(timeTaken < timeAllowed)
     {
+        int alpha = -10000;
+        int beta = 10000;
         ++limit;
+        board_start = temp_board;
 
-        //depth-limited search until a move that changes
-        //the score has been made or we've looked 2 moves each player in advance
-        if(limit > 3 || explore_moves(limit, &board_start) != current_score)
-            end_game_found = true;
+        //depth-limited search until the alotted time for the move
+        //runs out (roughly 15 minutes/40 average moves per game = 22.5 seconds)
+        if(explore_moves(limit, &board_start, &alpha, &beta) == -1)
+        {
+            board_start = final_board;
+        }
+        else
+        {
+            final_board = board_start;
+        }
+
+        stopTime = clock();
+        timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
     }
 
     //Once the search has completed, find the index for the move that
@@ -142,43 +182,46 @@ bool AI::run_turn()
     //that have the same score outcome)
     int move_num = find_move_number(board_start);
 
-    //Find the piece that matches the move to be made
-    Piece piece_to_move;
-    std::string file_str;
-    file_str = find_file(board_start.next_moves[move_num].old_file);
-
-    for(int i = 0; i < player->pieces.size(); ++i)
+    if(move_num != -1)
     {
-        if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
-           player->pieces[i]->file == file_str)
+        //Find the piece that matches the move to be made
+        Piece piece_to_move;
+        std::string file_str;
+
+        file_str = find_file(board_start.next_moves[move_num].old_file);
+
+        for(int i = 0; i < player->pieces.size(); ++i)
         {
-            piece_to_move = player->pieces[i];
-            break;
+            if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
+               player->pieces[i]->file == file_str)
+            {
+                piece_to_move = player->pieces[i];
+                break;
+            }
         }
+
+        //Set up move_data for checking on repetition rules
+        new_move.old_file = board_start.next_moves[move_num].old_file;
+        new_move.new_file = board_start.next_moves[move_num].new_file;
+        new_move.old_rank = board_start.next_moves[move_num].old_rank;
+        new_move.new_rank = board_start.next_moves[move_num].new_rank;
+        new_move.type = piece_to_move->type;
+
+        //If at the maximum number of moves to check (8) then remove
+        //one to add the newly made move
+        if(moves_made.size() == 8)
+        {
+            moves_made.erase(moves_made.begin());
+        }
+        moves_made.push_back(new_move);
+
+        //Move the piece that matches the search outcome
+        file_str = find_file(board_start.next_moves[move_num].new_file);
+
+        piece_to_move->move(file_str,
+                            board_start.next_moves[move_num].new_rank,
+                            board_start.next_moves[move_num].promotion);
     }
-
-    //Set up move_data for checking on repetition rules
-    move_data new_move;
-    new_move.old_file = board_start.next_moves[move_num].old_file;
-    new_move.new_file = board_start.next_moves[move_num].new_file;
-    new_move.old_rank = board_start.next_moves[move_num].old_rank;
-    new_move.new_rank = board_start.next_moves[move_num].new_rank;
-    new_move.type = piece_to_move->type;
-
-    //If at the maximum number of moves to check (8) then remove
-    //one to add the newly made move
-    if(moves_made.size() == 8)
-    {
-        moves_made.erase(moves_made.begin());
-    }
-    moves_made.push_back(new_move);
-
-    //Move the piece that matches the search outcome
-    file_str = find_file(board_start.next_moves[move_num].new_file);
-
-    piece_to_move->move(file_str,
-                        board_start.next_moves[move_num].new_rank,
-                        board_start.next_moves[move_num].promotion);
 
     //Clear moves so we start fresh next turn
     possible_moves.clear();
@@ -188,42 +231,22 @@ bool AI::run_turn()
 //This function is used for the iterative depth-limited minimax search
 //on the possible moves that can be made in the game
 //It is a recursive function that calls itself until a limit has been met
-int AI::explore_moves(int limit, node *start_board)
+int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
 {
-    int move_index = 0;
-
-    //Check to see if the start_board is in danger of the repetition draw
-    //rule, if it is, return with a very bad score (so it will not be chosen)
-    //Otherwise continue
-    if(move_repetition(start_board->old_file, start_board->new_file, start_board->old_rank,
-                        start_board->new_rank,
-                        start_board->current_FEN[start_board->new_rank][start_board->new_file]))
+    stopTime = clock();
+    timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+    if(timeTaken < (((player->time_remaining) * 0.000000001) / 40))
     {
-        int score = 0;
-        if(start_board->is_white)
-        {
-            //If the white player is moving, make the score low
-            score += -100;
-        }
-        else
-        {
-            //If the black player is moving, make the score high
-            score += 100;
-        }
+        int move_index = 0;
 
-        return score;
-    }
-
-    //If the limit has been reached, find the score of the board and return
-    if(limit <= 0)
-    {
-        int score = score_board(start_board->current_FEN);
-
-        //If there is insufficient material left on the board, return
-        //a bad score in order to prevent this move from being made
-        //over others that have sufficient pieces left
-        if(insufficient_material(start_board->current_FEN))
+        //Check to see if the start_board is in danger of the repetition draw
+        //rule, if it is, return with a very bad score (so it will not be chosen)
+        //Otherwise continue
+        if(move_repetition(start_board->old_file, start_board->new_file, start_board->old_rank,
+                            start_board->new_rank,
+                            start_board->current_FEN[start_board->new_rank][start_board->new_file]))
         {
+            int score = 0;
             if(start_board->is_white)
             {
                 //If the white player is moving, make the score low
@@ -234,106 +257,166 @@ int AI::explore_moves(int limit, node *start_board)
                 //If the black player is moving, make the score high
                 score += 100;
             }
+
+            return score;
         }
-        return score;
-    }
 
-    //Reset the lower case check for looking for possible moves
-    if(start_board->is_white)
-    {
-        player_lower_case = true;
-    }
-    else
-    {
-        player_lower_case = false;
-    }
-
-    //If there are moves that can be made from the current board
-    if(!start_board->next_moves.empty())
-    {
-        //Loop through the moves and explore each one until a limit is met
-        //or a draw condition is found - returning a score that can be chosen
-        //from as a max or min
-        for(int z = 0; z < start_board->next_moves.size(); ++z)
+        //If the limit has been reached, find the score of the board and return
+        if(limit <= 0)
         {
-            //Clear the tracked boards for the next search
-            possible_moves.clear();
+            int score = score_board(start_board->current_FEN);
 
-            //Set the move's FEN board to the current move's one (move z)
+            //If there is insufficient material left on the board, return
+            //a bad score in order to prevent this move from being made
+            //over others that have sufficient pieces left
+            if(insufficient_material(start_board->current_FEN))
+            {
+                if(start_board->is_white)
+                {
+                    //If the white player is moving, make the score low
+                    score += -100;
+                }
+                else
+                {
+                    //If the black player is moving, make the score high
+                    score += 100;
+                }
+            }
+            return score;
+        }
+
+        //Reset the lower case check for looking for possible moves
+        if(start_board->is_white)
+        {
+            player_lower_case = true;
+            //If we are the maximizing player (white) then alpha is low
+            *alpha = -10000;
+        }
+        else
+        {
+            player_lower_case = false;
+            //If the minimizing player (black) then beta is large
+            *beta = 10000;
+        }
+
+        //If there are moves that can be made from the current board
+        if(!start_board->next_moves.empty())
+        {
+            //Loop through the moves and explore each one until a limit is met
+            //or a draw condition is found - returning a score that can be chosen
+            //from as a max or min
+            for(int z = 0; z < start_board->next_moves.size(); ++z)
+            {
+                //Clear the tracked boards for the next search
+                possible_moves.clear();
+
+                //Set the move's FEN board to the current move's one (move z)
+                for(int i = 0; i < 8; ++i)
+                {
+                    for(int j = 0; j < 8; ++j)
+                    {
+                        FEN_board[i][j] = start_board->next_moves[z].current_FEN[i][j];
+                    }
+                }
+
+                //Search the possible moves for this current move (using FEN_board)
+                find_possible_moves();
+
+                //Set the next moves of move z to the possible moves that were found
+                start_board->next_moves[z].next_moves = possible_moves;
+
+                //Explore move z for moves that can be made from there until a score is found
+                start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z], alpha, beta);
+
+                //Now that we have the end score, depending on what color we are playing
+                //and whether we want high or low scores, prune based on alpha and beta
+                if(start_board->is_white)
+                {
+                    //If the score is larger than beta, prune this node
+                    if(*beta <= start_board->next_moves[z].end_score)
+                    {
+                        start_board->next_moves.erase(start_board->next_moves.begin() + z, start_board->next_moves.end() - 1);
+                        break;
+                    }
+                    //Reset alpha
+                    *alpha = start_board->next_moves[z].end_score;
+                }
+                else
+                {
+                    //If the score is lower than alpha, prune this node
+                    if(start_board->next_moves[z].end_score <= *alpha)
+                    {
+                        start_board->next_moves.erase(start_board->next_moves.begin() + z, start_board->next_moves.end() - 1);
+                        break;
+                    }
+                    //Reset beta
+                    *beta = start_board->next_moves[z].end_score;
+                }
+            }
+
+            //Sort the moves from highest end_score to lowest end_score for minimax evaluation
+            sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
+
+            //Based on how many moves result in the same score and the color
+            //of the current player, find the move index to make
+            int move_num = find_move_number(*start_board);
+
+            //Set the end_score of the parent board to the highest or lowest (depending on color)
+            //score of it's "next_moves" scores
+            start_board->end_score = start_board->next_moves[move_num].end_score;
+        }
+        //If there are no possible moves
+        else
+        {
+            //Loop through until we find a king so we can see if its in check
+            bool checked = false;
             for(int i = 0; i < 8; ++i)
             {
                 for(int j = 0; j < 8; ++j)
                 {
-                    FEN_board[i][j] = start_board->next_moves[z].current_FEN[i][j];
-                }
-            }
-
-            //Search the possible moves for this current move (using FEN_board)
-            find_possible_moves();
-
-            //Set the next moves of move z to the possible moves that were found
-            start_board->next_moves[z].next_moves = possible_moves;
-
-            //Explore move z for moves that can be made from there until a score is found
-            start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z]);
-        }
-
-        //Sort the moves from highest end_score to lowest end_score for minimax evaluation
-        sort(start_board->next_moves.begin(), start_board->next_moves.end(), sortNodes());
-
-        //Based on how many moves result in the same score and the color
-        //of the current player, find the move index to make
-        int move_num = find_move_number(*start_board);
-
-        //Set the end_score of the parent board to the highest or lowest (depending on color)
-        //score of it's "next_moves" scores
-        start_board->end_score = start_board->next_moves[move_num].end_score;
-    }
-    //If there are no possible moves
-    else
-    {
-        //Loop through until we find a king so we can see if its in check
-        bool checked = false;
-        for(int i = 0; i < 8; ++i)
-        {
-            for(int j = 0; j < 8; ++j)
-            {
-                if((start_board->current_FEN[i][j] == 'k'
-                    && !me_lower_case) ||
-                   (start_board->current_FEN[i][j] == 'K'
-                    && me_lower_case))
-                {
-                    //The opponent's king is checkmated, high priority move
-                    if(would_space_check(j, i))
+                    if((start_board->current_FEN[i][j] == 'k'
+                        && !me_lower_case) ||
+                       (start_board->current_FEN[i][j] == 'K'
+                        && me_lower_case))
                     {
-                        if(start_board->is_white)
+                        //The opponent's king is checkmated, high priority move
+                        if(would_space_check(j, i))
                         {
-                            //White will have a high score
-                            start_board->end_score = 100;
+                            if(start_board->is_white)
+                            {
+                                //White will have a high score
+                                start_board->end_score = 100;
+                            }
+                            else
+                            {
+                                //Black will have a low score
+                                start_board->end_score = -100;
+                            }
+                            checked = true;
                         }
-                        else
-                        {
-                            //Black will have a low score
-                            start_board->end_score = -100;
-                        }
-                        checked = true;
                     }
                 }
             }
-        }
-        //If the king is not checkmated, a stalemate has been reached
-        //this is a draw - not a good outcome, bad score given
-        if(checked == false)
-        {
-            if(start_board->is_white)
+
+            //If the king is not checkmated, a stalemate has been reached
+            //this is a draw - not a good outcome, bad score given
+            if(checked == false)
             {
-                start_board->end_score = -100;
+                if(start_board->is_white)
+                {
+                    start_board->end_score = -100;
+                }
+                else
+                {
+                    start_board->end_score = 100;
+                }
             }
-            else
-            {
-                start_board->end_score = 100;
-            }
+
         }
+    }
+    else
+    {
+        return -1;
     }
 
     //Return the score of the starting board
@@ -344,9 +427,10 @@ int AI::explore_moves(int limit, node *start_board)
 //on the given game_board based on scores
 int AI::find_move_number(node game_board)
 {
+    int move_num = 0;
+
     //If the player is white, look for the first move
     //in the list (highest score)
-    int move_num = 0;
 
     //If the player is not white, look for the last move
     //in the list (lowest score)
@@ -395,7 +479,7 @@ int AI::find_move_number(node game_board)
 bool AI::move_repetition(int old_f, int new_f, int old_r, int new_r, char ctype)
 {
     //If there have been atleast 7 moves made
-    if(moves_made.size() == 7)
+    if(moves_made.size() == 4)
     {
         //If moves 0,1, and 2 are the same as moves 4,5, and 6 then check the given
         //move to see if it matches move 3 and would be a repeat move

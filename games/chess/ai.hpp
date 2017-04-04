@@ -126,7 +126,7 @@ public:
 
     //Used for minimax evaluations to find the move to make
     //and regressively search for moves
-    int explore_moves(int limit, node *start_board);
+    int explore_moves(int limit, node *start_board, int *alpha, int *beta);
     int find_move_number(node game_board);
     void find_possible_moves();
 
@@ -174,6 +174,10 @@ public:
     bool player_lower_case;
     bool me_lower_case;
     int current_score;
+
+    clock_t startTime;
+    clock_t stopTime;
+    double timeTaken;
 
     // ####################
     // Don't edit these!
