@@ -62,6 +62,24 @@ namespace chess
         int old_rank;
         int new_rank;
         std::string type;
+        std::string promotion;
+        int move_count;
+        int depth_limit;
+    };
+
+    //Sort history table to determine what move is the best one by the number
+    //of times it was added to the table
+    struct sortHistory
+    {
+        inline bool operator() (const move_data &move1, const move_data &move2)
+        {
+            int firstValue = move1.move_count;
+            int secondValue = move2.move_count;
+            
+            //Sort the values by the move_count with highest counts
+            //first and lowest counts last
+            return (firstValue > secondValue);
+        }
     };
 
 /// <summary>
@@ -126,7 +144,7 @@ public:
 
     //Used for minimax evaluations to find the move to make
     //and regressively search for moves
-    int explore_moves(int limit, node *start_board, int *alpha, int *beta);
+    int explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta);
     int find_move_number(node game_board);
     void find_possible_moves();
 
@@ -137,6 +155,7 @@ public:
     //Scores the board and finds the given char file for a file number
     int score_board(char board_to_score[8][8]);
     char find_file(int file_num);
+    void update_history_table(node chosen_move, int limit);
 
     //Move generation functions
     void move_pawn(int rank, int file_num);
@@ -160,6 +179,7 @@ public:
     std::vector<node> possible_moves;
     std::vector<node> starter_moves;
     std::vector<move_data> moves_made;
+    std::vector<move_data> history_table;
 
     //Double array holding the state of the board
     char FEN_board[8][8];
@@ -174,6 +194,7 @@ public:
     bool player_lower_case;
     bool me_lower_case;
     int current_score;
+    int top_limit;
 
     clock_t startTime;
     clock_t stopTime;

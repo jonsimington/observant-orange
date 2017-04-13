@@ -83,6 +83,7 @@ bool AI::run_turn()
     generate_FEN_array();
     //Reset the player's case status
     player_lower_case = me_lower_case;
+    history_table.clear();
 
     //Set up move_data for checking on repetition rules (save opponent's last move)
     move_data new_move;
@@ -147,7 +148,8 @@ bool AI::run_turn()
     //with alpha-beta pruning and time-limited iterative deepening
     //depth-limited minimax search
     bool end_game_found = false;
-    int limit = 0;
+    top_limit = 0;
+    int qs_limit = 2;
     stopTime = clock();
     node temp_board = board_start;
     node final_board = board_start;
@@ -165,14 +167,14 @@ bool AI::run_turn()
         int beta = 10000;
 
         //Increase the depth limit to search
-        ++limit;
+        ++top_limit;
 
         //Save the start board for searching
         board_start = temp_board;
 
         //depth-limited search until the alotted time for the move
         //runs out
-        if(explore_moves(limit, &board_start, &alpha, &beta) == -9999)
+        if(explore_moves(top_limit, qs_limit, &board_start, &alpha, &beta) == -9999)
         {
             //Use the last completed depth search if ran out of time
             board_start = final_board;
@@ -188,36 +190,44 @@ bool AI::run_turn()
         stopTime = clock();
         timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
     }
+    std::cout << "Top limit: " << top_limit << '\n';
 
-    //Once the search has completed, find the index for the move that
-    //should be made (either highest/lowest value depending on color or
-    //a random move with the highest/lowest value when there are multiples
-    //that have the same score outcome)
-    int move_num = find_move_number(board_start);
+    //Find the piece that matches the move to be made
+    Piece piece_to_move;
+    std::string file_str;
 
-    if(move_num != -1)
+    sort(history_table.begin(), history_table.end(), sortHistory());
+
+    int move_number = -1;
+
+    for(int j = 0; j < history_table.size(); ++j)
     {
-        //Find the piece that matches the move to be made
-        Piece piece_to_move;
-        std::string file_str;
-
-        file_str = find_file(board_start.next_moves[move_num].old_file);
-
-        for(int i = 0; i < player->pieces.size(); ++i)
+        if(history_table[j].depth_limit == 0)
         {
-            if(player->pieces[i]->rank == board_start.next_moves[move_num].old_rank &&
-               player->pieces[i]->file == file_str)
+            move_number = j;
+            file_str = find_file(history_table[move_number].old_file);
+
+            for(int i = 0; i < player->pieces.size(); ++i)
             {
-                piece_to_move = player->pieces[i];
-                break;
+                if(player->pieces[i]->rank == history_table[move_number].old_rank &&
+                   player->pieces[i]->file == file_str)
+                {
+                    std::cout << "" << file_str << "" << history_table[move_number].old_rank << '\n';
+                    piece_to_move = player->pieces[i];
+                    j = history_table.size();
+                    break;
+                }
             }
         }
+    }
 
+    if(move_number != -1)
+    {
         //Set up move_data for checking on repetition rules
-        new_move.old_file = board_start.next_moves[move_num].old_file;
-        new_move.new_file = board_start.next_moves[move_num].new_file;
-        new_move.old_rank = board_start.next_moves[move_num].old_rank;
-        new_move.new_rank = board_start.next_moves[move_num].new_rank;
+        new_move.old_file = history_table[move_number].old_file;
+        new_move.new_file = history_table[move_number].new_file;
+        new_move.old_rank = history_table[move_number].old_rank;
+        new_move.new_rank = history_table[move_number].new_rank;
         new_move.type = piece_to_move->type;
 
         //If at the maximum number of moves to check (8) then remove
@@ -229,11 +239,11 @@ bool AI::run_turn()
         moves_made.push_back(new_move);
 
         //Move the piece that matches the search outcome
-        file_str = find_file(board_start.next_moves[move_num].new_file);
+        file_str = find_file(history_table[move_number].new_file);
 
         piece_to_move->move(file_str,
-                            board_start.next_moves[move_num].new_rank,
-                            board_start.next_moves[move_num].promotion);
+                            history_table[move_number].new_rank,
+                            history_table[move_number].promotion);
     }
 
     //Clear moves so we start fresh next turn
@@ -244,10 +254,11 @@ bool AI::run_turn()
 //This function is used for the iterative depth-limited minimax search
 //on the possible moves that can be made in the game
 //It is a recursive function that calls itself until a limit has been met
-int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
+int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta)
 {
     stopTime = clock();
     timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+    bool qs_state = false;
 
     //Check to see if the search has run out of time for this turn (time allowed
     //divided by an average of 40 moves per game)
@@ -279,8 +290,15 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
             return score;
         }
 
+        if(start_board->current_FEN[start_board->new_rank][start_board->new_file] == 'p' ||
+           start_board->current_FEN[start_board->new_rank][start_board->new_file] == 'P')
+        {
+            std::cout << "QS state found\n";
+            qs_state = true;
+        }
+
         //If the limit has been reached, find the score of the board and return
-        if(limit <= 0)
+        if(limit <= 0 && !qs_state)
         {
             int score = score_board(start_board->current_FEN);
 
@@ -307,13 +325,11 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
         if(start_board->is_white)
         {
             player_lower_case = true;
-            //If we are the maximizing player (white) then alpha is low
             *alpha = -10000;
         }
         else
         {
             player_lower_case = false;
-            //If the minimizing player (black) then beta is large
             *beta = 10000;
         }
 
@@ -344,7 +360,14 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
                 start_board->next_moves[z].next_moves = possible_moves;
 
                 //Explore move z for moves that can be made from there until a score is found
-                start_board->next_moves[z].end_score = explore_moves(limit - 1, &start_board->next_moves[z], alpha, beta);
+                if(limit > 0)
+                {
+                    start_board->next_moves[z].end_score = explore_moves(limit - 1, qs_limit, &start_board->next_moves[z], alpha, beta);
+                }
+                else
+                {
+                    //start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta);
+                }
 
                 //Now that we have the end score, depending on what color we are playing
                 //and whether we want high or low scores, prune based on alpha and beta
@@ -382,6 +405,7 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
             //Set the end_score of the parent board to the highest or lowest (depending on color)
             //score of it's "next_moves" scores
             start_board->end_score = start_board->next_moves[move_num].end_score;
+            update_history_table(start_board->next_moves[move_num], limit);
         }
         //If there are no possible moves
         else
@@ -439,6 +463,43 @@ int AI::explore_moves(int limit, node *start_board, int *alpha, int *beta)
 
     //Return the score of the starting board
     return start_board->end_score;
+}
+
+void AI::update_history_table(node chosen_node, int limit)
+{
+    bool move_exists = false;
+    move_data chosen_move;
+    chosen_move.old_file = chosen_node.old_file;
+    chosen_move.new_file = chosen_node.new_file;
+    chosen_move.old_rank = chosen_node.old_rank;
+    chosen_move.new_rank = chosen_node.new_rank;
+    chosen_move.type = chosen_node.current_FEN[chosen_node.new_rank-1][chosen_node.new_file];
+    chosen_move.depth_limit = top_limit - limit;
+    chosen_move.promotion = chosen_node.promotion;
+
+    for(int i = 0; i < history_table.size(); ++i)
+    {
+        if(history_table[i].old_file == chosen_move.old_file &&
+           history_table[i].new_file == chosen_move.new_file &&
+           history_table[i].old_rank == chosen_move.old_rank &&
+           history_table[i].new_rank == chosen_move.new_rank &&
+           history_table[i].type == chosen_move.type &&
+           history_table[i].promotion == chosen_move.promotion)
+        {
+            ++history_table[i].move_count;
+            move_exists = true;
+            if(chosen_move.depth_limit == 0)
+            {
+                history_table[i].depth_limit = 0;
+            }
+        }
+    }
+
+    if(!move_exists)
+    {
+        chosen_move.move_count = 1;
+        history_table.push_back(chosen_move);
+    }
 }
 
 //This function finds the index of the move to be made
