@@ -298,7 +298,7 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
         }
 
         //If the limit has been reached, find the score of the board and return
-        if(limit <= 0 && !qs_state)
+        if(limit <= 0 && (!qs_state || qs_limit <= 0))
         {
             int score = score_board(start_board->current_FEN);
 
@@ -324,12 +324,12 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
         //Reset the lower case check for looking for possible moves
         if(start_board->is_white)
         {
-            player_lower_case = true;
+            player_lower_case = false;
             *alpha = -10000;
         }
         else
         {
-            player_lower_case = false;
+            player_lower_case = true;
             *beta = 10000;
         }
 
@@ -366,7 +366,7 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
                 }
                 else
                 {
-                    //start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta);
+                    start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta);
                 }
 
                 //Now that we have the end score, depending on what color we are playing
