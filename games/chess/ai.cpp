@@ -174,7 +174,7 @@ bool AI::run_turn()
 
         //depth-limited search until the alotted time for the move
         //runs out
-        if(explore_moves(top_limit, qs_limit, &board_start, &alpha, &beta) == -9999)
+        if(explore_moves(top_limit, qs_limit, &board_start, &alpha, &beta, score_board(board_start.current_FEN)) == -9999)
         {
             //Use the last completed depth search if ran out of time
             board_start = final_board;
@@ -190,7 +190,6 @@ bool AI::run_turn()
         stopTime = clock();
         timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
     }
-    std::cout << "Top limit: " << top_limit << '\n';
 
     //Find the piece that matches the move to be made
     Piece piece_to_move;
@@ -212,7 +211,6 @@ bool AI::run_turn()
                 if(player->pieces[i]->rank == history_table[move_number].old_rank &&
                    player->pieces[i]->file == file_str)
                 {
-                    std::cout << "" << file_str << "" << history_table[move_number].old_rank << '\n';
                     piece_to_move = player->pieces[i];
                     j = history_table.size();
                     break;
@@ -254,7 +252,7 @@ bool AI::run_turn()
 //This function is used for the iterative depth-limited minimax search
 //on the possible moves that can be made in the game
 //It is a recursive function that calls itself until a limit has been met
-int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta)
+int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta, int last_score)
 {
     stopTime = clock();
     timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
@@ -290,10 +288,8 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
             return score;
         }
 
-        if(start_board->current_FEN[start_board->new_rank][start_board->new_file] == 'p' ||
-           start_board->current_FEN[start_board->new_rank][start_board->new_file] == 'P')
+        if(score_board(start_board->current_FEN) == last_score)
         {
-            std::cout << "QS state found\n";
             qs_state = true;
         }
 
@@ -362,11 +358,11 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
                 //Explore move z for moves that can be made from there until a score is found
                 if(limit > 0)
                 {
-                    start_board->next_moves[z].end_score = explore_moves(limit - 1, qs_limit, &start_board->next_moves[z], alpha, beta);
+                    start_board->next_moves[z].end_score = explore_moves(limit - 1, qs_limit, &start_board->next_moves[z], alpha, beta, score_board(start_board->current_FEN));
                 }
                 else
                 {
-                    start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta);
+                    start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta, score_board(start_board->current_FEN));
                 }
 
                 //Now that we have the end score, depending on what color we are playing
@@ -939,7 +935,10 @@ void AI::move_king(int rank, int file_num)
     }
 
     //Check to see if kingside or queenside castling is allowed
-    check_for_castling(rank, file_num);
+    if(!would_space_check(rank, file_num))
+    {
+        check_for_castling(rank, file_num);
+    }
 }
 
 //Finds the possible moves of a given rook or the queen on the current

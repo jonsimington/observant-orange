@@ -144,7 +144,7 @@ public:
 
     //Used for minimax evaluations to find the move to make
     //and regressively search for moves
-    int explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta);
+    int explore_moves(int limit, int qs_limit, node *start_board, int *alpha, int *beta, int last_score);
     int find_move_number(node game_board);
     void find_possible_moves();
 
