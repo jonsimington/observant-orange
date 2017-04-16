@@ -195,10 +195,15 @@ bool AI::run_turn()
     Piece piece_to_move;
     std::string file_str;
 
+    //Now that moves have been gathered and counted in the history table,
+    //sort it by the number of times that move was the "best move" so that
+    //the move to be made can be determined
     sort(history_table.begin(), history_table.end(), sortHistory());
 
     int move_number = -1;
 
+    //Look through the history table for a move with the right depth
+    //(so we know it can be made this turn) and the highest count
     for(int j = 0; j < history_table.size(); ++j)
     {
         if(history_table[j].depth_limit == 0)
@@ -219,6 +224,8 @@ bool AI::run_turn()
         }
     }
 
+    //As long as the move found above was valid, find the piece to move
+    //and make the highest counted move in the history table
     if(move_number != -1)
     {
         //Set up move_data for checking on repetition rules
@@ -256,6 +263,8 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
 {
     stopTime = clock();
     timeTaken = double(stopTime - startTime) / CLOCKS_PER_SEC;
+
+    //Assume quiescence state is false until decided otherwise
     bool qs_state = false;
 
     //Check to see if the search has run out of time for this turn (time allowed
@@ -288,12 +297,16 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
             return score;
         }
 
+        //If the last move changed the score of the board, this is a
+        //quiescence state and we should search farther (using qs_depth value)
         if(score_board(start_board->current_FEN) == last_score)
         {
             qs_state = true;
         }
 
-        //If the limit has been reached, find the score of the board and return
+        //If the limit has been reached and it is not a quiescence
+        //or the quiescence limit has also been reached,
+        //find the score of the board and return
         if(limit <= 0 && (!qs_state || qs_limit <= 0))
         {
             int score = score_board(start_board->current_FEN);
@@ -360,6 +373,8 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
                 {
                     start_board->next_moves[z].end_score = explore_moves(limit - 1, qs_limit, &start_board->next_moves[z], alpha, beta, score_board(start_board->current_FEN));
                 }
+                //If the limit is 0 and we reach this code, then we are in a quiescence
+                //state and should search farther while decreasing the quiescence depth limit
                 else
                 {
                     start_board->next_moves[z].end_score = explore_moves(limit, qs_limit - 1, &start_board->next_moves[z], alpha, beta, score_board(start_board->current_FEN));
@@ -461,10 +476,17 @@ int AI::explore_moves(int limit, int qs_limit, node *start_board, int *alpha, in
     return start_board->end_score;
 }
 
+//Updates the history table with the given move by either adding the
+//node's move to the table OR increasing the count on the given move
+//if it already exists in the table.  We also record the depth limit
+//this move is made at in order to later decide if it's a possible
+//move to make that turn or a future turn's move
 void AI::update_history_table(node chosen_node, int limit)
 {
     bool move_exists = false;
     move_data chosen_move;
+
+    //Record move
     chosen_move.old_file = chosen_node.old_file;
     chosen_move.new_file = chosen_node.new_file;
     chosen_move.old_rank = chosen_node.old_rank;
@@ -473,8 +495,10 @@ void AI::update_history_table(node chosen_node, int limit)
     chosen_move.depth_limit = top_limit - limit;
     chosen_move.promotion = chosen_node.promotion;
 
+    //Search the history table to see if the move has already been added
     for(int i = 0; i < history_table.size(); ++i)
     {
+        //If the move has already been added, simply increase it's count
         if(history_table[i].old_file == chosen_move.old_file &&
            history_table[i].new_file == chosen_move.new_file &&
            history_table[i].old_rank == chosen_move.old_rank &&
@@ -491,6 +515,8 @@ void AI::update_history_table(node chosen_node, int limit)
         }
     }
 
+    //If the move did not exist in the history table yet,
+    //add it to the table
     if(!move_exists)
     {
         chosen_move.move_count = 1;
