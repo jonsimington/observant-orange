@@ -19,7 +19,7 @@ namespace chess
 std::string AI::get_name() const
 {
     // REPLACE WITH YOUR TEAM NAME!
-    return "Chess C++ Player";
+    return "Observant Orange";
 }
 
 /// <summary>
@@ -632,31 +632,31 @@ void AI::find_possible_moves()
     {
         for(int j = 0; j < 8; ++j)
         {
-            
+
             if((FEN_board[i][j] == 'p' && player_lower_case) ||
                (FEN_board[i][j] == 'P' && !player_lower_case))
             {
                 move_pawn(i, j);
             }
-            
+
             if((FEN_board[i][j] == 'k' && player_lower_case) ||
                (FEN_board[i][j] == 'K' && !player_lower_case))
             {
                 move_king(i, j);
             }
-            
+
             if(((FEN_board[i][j] == 'r' || FEN_board[i][j] == 'q') && player_lower_case) ||
                ((FEN_board[i][j] == 'R' || FEN_board[i][j] == 'Q') && !player_lower_case))
             {
                 move_rook_or_queen(i, j);
             }
-            
+
             if(((FEN_board[i][j] == 'b' || FEN_board[i][j] == 'q') && player_lower_case) ||
                ((FEN_board[i][j] == 'B' || FEN_board[i][j] == 'Q') && !player_lower_case))
             {
                 move_bishop_or_queen(i, j);
             }
-            
+
             if((FEN_board[i][j] == 'n' && player_lower_case) ||
                (FEN_board[i][j] == 'N' && !player_lower_case))
             {
@@ -1605,7 +1605,7 @@ bool AI::would_space_check(int file_num, int rank)
                 {
                     return true;
                 }
-                
+
                 attack_file = file_num + 2;
                 //L shape to the right two and up
                 if((j == attack_file && k == attack_rank) ||
